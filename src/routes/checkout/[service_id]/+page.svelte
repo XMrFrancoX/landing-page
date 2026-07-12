@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { landing } from '$lib/supabaseClient';
+  import { supabase, landing } from '$lib/supabaseClient';
   import { ArrowLeft, CheckCircle2, ChevronRight } from 'lucide-svelte';
 
   let { data } = $props();
@@ -18,11 +18,29 @@
     isLoading = true;
     errorMessage = '';
 
+    // Si hay una sesión activa, vinculamos la solicitud a esa cuenta y a
+    // su escuela — así un admin/director puede ver en /cliente todo lo
+    // que contrató su institución, no solo lo que él mismo pidió.
+    let user_id: string | null = null;
+    let school_id: string | null = null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      user_id = session.user.id;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('id', session.user.id)
+        .single();
+      school_id = profile?.school_id ?? null;
+    }
+
     const { error } = await landing
       .from('requests')
       .insert([
         {
           service_id: data.service.id,
+          user_id,
+          school_id,
           contact_name,
           contact_email,
           contact_phone,

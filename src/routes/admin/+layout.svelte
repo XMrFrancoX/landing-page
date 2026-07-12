@@ -7,16 +7,20 @@
   let { children } = $props();
   let isChecking = $state(true);
   let user = $state<any>(null);
-  let isSuperadmin = $state(false);
   let sidebarOpen = $state(false);
   let currentPath = $state('');
 
-  let navItems = $derived([
+  // Todo /admin es exclusivo de superadmin (NMF): son los únicos que
+  // administran el catálogo global de servicios, las solicitudes de
+  // todas las escuelas y el alta/baja de escuelas. El rol 'admin' es
+  // el admin de UNA escuela puntual y no tiene por qué poder editar/
+  // eliminar nada de esto — cae a /cliente como cualquier otro usuario.
+  const navItems = [
     { href: '/admin', label: 'Panel Principal', icon: LayoutDashboard },
     { href: '/admin/solicitudes', label: 'Solicitudes', icon: Users },
     { href: '/admin/servicios', label: 'Servicios', icon: Package },
-    ...(isSuperadmin ? [{ href: '/admin/superadmin', label: 'Escuelas', icon: Building2 }] : [])
-  ]);
+    { href: '/admin/superadmin', label: 'Escuelas', icon: Building2 }
+  ];
 
   onMount(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -29,17 +33,16 @@
         .eq('id', session.user.id)
         .single();
 
-      if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
+      if (profile?.role !== 'superadmin') {
         goto('/cliente');
       } else {
         user = session.user;
-        isSuperadmin = profile?.role === 'superadmin';
       }
     }
     isChecking = false;
     currentPath = window.location.pathname;
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((_event: string, session: unknown) => {
       if (!session) goto('/login');
     });
   });

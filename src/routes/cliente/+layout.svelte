@@ -17,7 +17,7 @@
     }
     isChecking = false;
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((_event: string, session: unknown) => {
       if (!session) goto('/login');
     });
   });

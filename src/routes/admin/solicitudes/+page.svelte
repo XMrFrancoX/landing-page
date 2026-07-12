@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { landing } from '$lib/supabaseClient';
-  import { RefreshCcw, Eye, Trash2, X, Clock, Users, CheckCircle2, FileText, ChevronDown, ChevronUp } from 'lucide-svelte';
+  import { toast } from 'svelte-sonner';
+  import { RefreshCcw, Eye, Trash2, X, Clock, Users, CheckCircle2, FileText, ChevronDown, ChevronUp, AlertOctagon, Send } from 'lucide-svelte';
 
   let requests = $state<any[]>([]);
+  let messagesByRequest = $state<Record<string, any[]>>({});
   let isLoading = $state(true);
   let selectedRequest = $state<any>(null);
   let expandedId = $state<string | null>(null);
   let activeFilter = $state<string>('all');
   let deleteConfirmId = $state<string | null>(null);
+  let draftReply = $state('');
+  let isSendingReply = $state(false);
 
   let filteredRequests = $derived(
     activeFilter === 'all'
@@ -19,12 +23,14 @@
   let pendingCount = $derived(requests.filter(r => r.status === 'pending').length);
   let contactedCount = $derived(requests.filter(r => r.status === 'contacted').length);
   let resolvedCount = $derived(requests.filter(r => r.status === 'resolved').length);
+  let bajaCount = $derived(requests.filter(r => r.status === 'baja_solicitada').length);
 
   const filters = [
     { key: 'all', label: 'Todas', icon: FileText },
     { key: 'pending', label: 'Pendientes', icon: Clock },
     { key: 'contacted', label: 'Contactados', icon: Users },
     { key: 'resolved', label: 'Resueltos', icon: CheckCircle2 },
+    { key: 'baja_solicitada', label: 'Bajas', icon: AlertOctagon },
   ];
 
   onMount(async () => {
@@ -38,8 +44,48 @@
       .select('*, services(name)')
       .order('created_at', { ascending: false });
 
-    if (!error && data) requests = data;
+    if (!error && data) {
+      requests = data;
+      await fetchMessages();
+    }
     isLoading = false;
+  }
+
+  async function fetchMessages() {
+    if (requests.length === 0) return;
+    const { data, error } = await landing
+      .from('request_messages')
+      .select('*')
+      .in('request_id', requests.map(r => r.id))
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      const grouped: Record<string, any[]> = {};
+      for (const msg of data) {
+        (grouped[msg.request_id] ??= []).push(msg);
+      }
+      messagesByRequest = grouped;
+    }
+  }
+
+  async function sendReply(requestId: string) {
+    const body = draftReply.trim();
+    if (!body) return;
+    isSendingReply = true;
+    const { error } = await landing.from('request_messages').insert({
+      request_id: requestId,
+      sender_role: 'nmf',
+      sender_name: 'NMF',
+      body
+    });
+    if (!error) {
+      draftReply = '';
+      await fetchMessages();
+      toast.success('Respuesta enviada.');
+    } else {
+      toast.error('No se pudo enviar la respuesta.');
+    }
+    isSendingReply = false;
   }
 
   async function updateStatus(id: string, newStatus: string) {
@@ -62,17 +108,35 @@
   }
 
   function statusLabel(s: string) {
-    return s === 'pending' ? 'Pendiente' : s === 'contacted' ? 'Contactado' : 'Resuelto';
+    if (s === 'pending') return 'Pendiente';
+    if (s === 'contacted') return 'Contactado';
+    if (s === 'baja_solicitada') return 'Baja solicitada';
+    return 'Resuelto';
+  }
+
+  function statusBadgeClass(s: string) {
+    if (s === 'pending') return 'bg-amber-100 text-amber-800';
+    if (s === 'contacted') return 'bg-blue-100 text-blue-800';
+    if (s === 'baja_solicitada') return 'bg-red-100 text-red-700';
+    return 'bg-green-100 text-green-800';
   }
 
   function toggleExpanded(id: string) {
     expandedId = expandedId === id ? null : id;
+    draftReply = '';
+  }
+
+  function formatDateTime(dateString: string) {
+    return new Date(dateString).toLocaleDateString('es-AR', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
   }
 
   function filterCount(key: string) {
     if (key === 'all') return requests.length;
     if (key === 'pending') return pendingCount;
     if (key === 'contacted') return contactedCount;
+    if (key === 'baja_solicitada') return bajaCount;
     return resolvedCount;
   }
 </script>
@@ -122,7 +186,8 @@
       <h2 class="text-lg font-bold text-slate-900">
         {activeFilter === 'all' ? 'Todas las Solicitudes' :
          activeFilter === 'pending' ? 'Solicitudes Pendientes' :
-         activeFilter === 'contacted' ? 'Solicitudes Contactadas' : 'Solicitudes Resueltas'}
+         activeFilter === 'contacted' ? 'Solicitudes Contactadas' :
+         activeFilter === 'baja_solicitada' ? 'Bajas Solicitadas' : 'Solicitudes Resueltas'}
       </h2>
       <span class="text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-2.5 py-0.5">{filteredRequests.length} registros</span>
     </div>
@@ -162,10 +227,7 @@
                 <td class="p-4 text-slate-600 hidden lg:table-cell">{req.contact_phone || '—'}</td>
                 <td class="p-4 font-medium text-primary">{req.services?.name || '—'}</td>
                 <td class="p-4">
-                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                    {req.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                     req.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
-                     'bg-green-100 text-green-800'}">
+                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadgeClass(req.status)}">
                     {statusLabel(req.status)}
                   </span>
                 </td>
@@ -179,12 +241,16 @@
                       <option value="pending">Pendiente</option>
                       <option value="contacted">Contactado</option>
                       <option value="resolved">Resuelto</option>
+                      <option value="baja_solicitada">Baja solicitada</option>
                     </select>
                     <button
                       onclick={() => toggleExpanded(req.id)}
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-slate-500 hover:text-primary hover:border-primary/30 transition-colors"
-                      title={expandedId === req.id ? 'Ocultar mensaje' : 'Ver mensaje'}
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-slate-500 hover:text-primary hover:border-primary/30 transition-colors relative"
+                      title={expandedId === req.id ? 'Ocultar mensajes' : 'Ver mensajes'}
                     >
+                      {#if (messagesByRequest[req.id]?.length ?? 0) > 0}
+                        <span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary"></span>
+                      {/if}
                       {#if expandedId === req.id}
                         <ChevronUp class="h-4 w-4" />
                       {:else}
@@ -225,13 +291,50 @@
               </tr>
 
               <!-- Expanded Message Row -->
-              {#if expandedId === req.id && req.message}
+              {#if expandedId === req.id}
+                {@const thread = messagesByRequest[req.id] ?? []}
                 <tr class="bg-slate-50/80">
-                  <td colspan="7" class="px-4 py-3">
-                    <div class="flex items-start gap-3">
-                      <span class="text-xs font-medium text-slate-500 mt-0.5 shrink-0">Mensaje:</span>
-                      <p class="text-sm text-slate-700 leading-relaxed">{req.message}</p>
-                    </div>
+                  <td colspan="7" class="px-4 py-4 space-y-3">
+                    {#if req.message}
+                      <div class="flex items-start gap-3">
+                        <span class="text-xs font-medium text-slate-500 mt-0.5 shrink-0">Mensaje inicial:</span>
+                        <p class="text-sm text-slate-700 leading-relaxed">{req.message}</p>
+                      </div>
+                    {/if}
+
+                    {#if thread.length > 0}
+                      <div class="space-y-2 max-h-64 overflow-y-auto">
+                        {#each thread as msg}
+                          <div class="flex {msg.sender_role === 'nmf' ? 'justify-end' : 'justify-start'}">
+                            <div class="max-w-[70%] rounded-lg px-3 py-2 text-xs {msg.sender_role === 'nmf' ? 'bg-primary/10 text-slate-800' : 'bg-white border text-slate-700'}">
+                              <p class="font-medium mb-0.5 {msg.sender_role === 'nmf' ? 'text-primary' : 'text-slate-600'}">
+                                {msg.sender_role === 'nmf' ? 'NMF' : (msg.sender_name || 'Cliente')}
+                              </p>
+                              <p class="leading-relaxed">{msg.body}</p>
+                              <p class="text-[10px] text-slate-400 mt-1">{formatDateTime(msg.created_at)}</p>
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    {:else}
+                      <p class="text-xs text-slate-400 italic">Todavía no hay mensajes en esta solicitud.</p>
+                    {/if}
+
+                    <form onsubmit={(e) => { e.preventDefault(); sendReply(req.id); }} class="flex gap-2">
+                      <input
+                        type="text"
+                        bind:value={draftReply}
+                        placeholder="Responder al cliente..."
+                        class="h-9 flex-1 rounded-md border border-input bg-white px-3 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isSendingReply || !draftReply.trim()}
+                        class="inline-flex items-center gap-1.5 h-9 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        <Send class="h-3.5 w-3.5" />
+                      </button>
+                    </form>
                   </td>
                 </tr>
               {/if}
@@ -262,10 +365,7 @@
         <div class="flex justify-between"><span class="text-slate-500 font-medium">Servicio</span><span class="text-primary font-medium">{selectedRequest.services?.name || '—'}</span></div>
         <div class="flex justify-between items-center">
           <span class="text-slate-500 font-medium">Estado</span>
-          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-            {selectedRequest.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-             selectedRequest.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
-             'bg-green-100 text-green-800'}">
+          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadgeClass(selectedRequest.status)}">
             {statusLabel(selectedRequest.status)}
           </span>
         </div>

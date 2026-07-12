@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { landing } from '$lib/supabaseClient';
-  import { FileText, Clock, CheckCircle2, Users, RefreshCcw, Eye, X } from 'lucide-svelte';
+  import { FileText, Clock, CheckCircle2, Users, RefreshCcw, Eye, X, AlertOctagon } from 'lucide-svelte';
 
   let requests = $state<any[]>([]);
   let isLoading = $state(true);
@@ -10,6 +10,7 @@
   let pendingCount = $derived(requests.filter(r => r.status === 'pending').length);
   let contactedCount = $derived(requests.filter(r => r.status === 'contacted').length);
   let resolvedCount = $derived(requests.filter(r => r.status === 'resolved').length);
+  let bajaCount = $derived(requests.filter(r => r.status === 'baja_solicitada').length);
   let totalCount = $derived(requests.length);
 
   onMount(async () => {
@@ -39,7 +40,17 @@
   }
 
   function statusLabel(s: string) {
-    return s === 'pending' ? 'Pendiente' : s === 'contacted' ? 'Contactado' : 'Resuelto';
+    if (s === 'pending') return 'Pendiente';
+    if (s === 'contacted') return 'Contactado';
+    if (s === 'baja_solicitada') return 'Baja solicitada';
+    return 'Resuelto';
+  }
+
+  function statusBadgeClass(s: string) {
+    if (s === 'pending') return 'bg-amber-100 text-amber-800';
+    if (s === 'contacted') return 'bg-blue-100 text-blue-800';
+    if (s === 'baja_solicitada') return 'bg-red-100 text-red-700';
+    return 'bg-green-100 text-green-800';
   }
 </script>
 
@@ -60,7 +71,7 @@
   </div>
 
   <!-- Stats -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
     <div class="rounded-2xl border bg-white p-5 shadow-sm">
       <div class="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <FileText class="h-5 w-5" />
@@ -88,6 +99,13 @@
       </div>
       <div class="text-2xl font-bold text-slate-900">{resolvedCount}</div>
       <div class="text-xs font-medium text-slate-500 mt-0.5">Resueltos</div>
+    </div>
+    <div class="rounded-2xl border bg-white p-5 shadow-sm">
+      <div class="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600">
+        <AlertOctagon class="h-5 w-5" />
+      </div>
+      <div class="text-2xl font-bold text-slate-900">{bajaCount}</div>
+      <div class="text-xs font-medium text-slate-500 mt-0.5">Bajas</div>
     </div>
   </div>
 
@@ -129,10 +147,7 @@
                 </td>
                 <td class="p-4 font-medium text-primary">{req.services?.name || '—'}</td>
                 <td class="p-4">
-                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                    {req.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                     req.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
-                     'bg-green-100 text-green-800'}">
+                  <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusBadgeClass(req.status)}">
                     {statusLabel(req.status)}
                   </span>
                 </td>
@@ -146,6 +161,7 @@
                       <option value="pending">Pendiente</option>
                       <option value="contacted">Contactado</option>
                       <option value="resolved">Resuelto</option>
+                      <option value="baja_solicitada">Baja solicitada</option>
                     </select>
                     <button
                       onclick={() => selectedRequest = req}

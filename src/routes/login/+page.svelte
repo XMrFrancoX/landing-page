@@ -44,7 +44,7 @@
           .eq('id', data.user.id)
           .single();
 
-        if (profile?.role === 'admin' || profile?.role === 'superadmin') {
+        if (profile?.role === 'superadmin') {
           goto('/admin');
         } else {
           goto('/cliente');

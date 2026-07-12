@@ -84,7 +84,7 @@
           <input type="hidden" name="user_id" value={user.id} />
           <div>
             <span class="block text-sm font-medium text-slate-900">{user.full_name || 'Sin nombre'}</span>
-            <span class="block text-xs text-slate-500">{roleLabels[user.role] ?? user.role} · {user.schools?.[0]?.name ?? 'Sin escuela'}</span>
+            <span class="block text-xs text-slate-500">{roleLabels[user.role] ?? user.role} · {(user.schools as unknown as { name: string } | null)?.name ?? 'Sin escuela'}</span>
           </div>
           <div class="flex items-center gap-2">
             <select name="role" value={user.role} class="h-8 rounded-md border px-2 text-xs bg-white">
