@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabaseClient';
+import { landing } from '$lib/supabaseClient';
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
@@ -6,7 +6,7 @@ export const load: PageLoad = async ({ params }) => {
   const serviceId = params.service_id;
 
   // Intentamos obtener el servicio de Supabase
-  const { data, error: sbError } = await supabase
+  const { data, error: sbError } = await landing
     .from('services')
     .select('*')
     .eq('id', serviceId)

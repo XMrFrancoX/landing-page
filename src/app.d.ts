@@ -10,7 +10,20 @@ declare global {
 		}
 
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			supabase: import('@supabase/supabase-js').SupabaseClient;
+			safeGetSession: () => Promise<{
+				session: import('@supabase/supabase-js').Session | null;
+				user: import('@supabase/supabase-js').User | null;
+			}>;
+			user: import('@supabase/supabase-js').User | null;
+			profile: {
+				id: string;
+				full_name: string | null;
+				role: 'teacher' | 'director' | 'admin' | 'superadmin' | 'student' | 'tutor' | 'client';
+				school_id: string | null;
+			} | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 	}
