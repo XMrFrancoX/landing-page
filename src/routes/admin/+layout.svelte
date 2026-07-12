@@ -19,7 +19,7 @@
     { href: '/admin', label: 'Panel Principal', icon: LayoutDashboard },
     { href: '/admin/solicitudes', label: 'Solicitudes', icon: Users },
     { href: '/admin/servicios', label: 'Servicios', icon: Package },
-    { href: '/admin/superadmin', label: 'Escuelas', icon: Building2 }
+    { href: '/admin/escuelas', label: 'Escuelas', icon: Building2 }
   ];
 
   onMount(async () => {

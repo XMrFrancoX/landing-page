@@ -24,10 +24,15 @@
       user = session.user;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('school_id')
+        .select('school_id, role')
         .eq('id', session.user.id)
         .single();
-      schoolId = profile?.school_id ?? null;
+      // Solo admin/director tienen autoridad sobre lo que contrató toda
+      // la escuela. teacher/student/tutor (mismo school_id, sin ese rol)
+      // deben quedar acotados a lo que ellos mismos pidieron, como
+      // cualquier cliente sin escuela.
+      const hasSchoolAuthority = profile?.role === 'admin' || profile?.role === 'director';
+      schoolId = hasSchoolAuthority ? (profile?.school_id ?? null) : null;
       await fetchRequests();
     }
   });
@@ -88,6 +93,11 @@
       draftMessage = '';
       await fetchMessages();
       toast.success('Mensaje enviado a NMF.');
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'mensaje', requestId })
+      }).catch(() => {});
     } else {
       toast.error('No se pudo enviar el mensaje. Intentá de nuevo.');
     }
@@ -107,6 +117,11 @@
       });
       await fetchRequests();
       toast.success('Solicitud de baja enviada. NMF se va a contactar con vos.');
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'baja', requestId })
+      }).catch(() => {});
     } else {
       toast.error('No se pudo enviar la solicitud de baja. Intentá de nuevo.');
     }

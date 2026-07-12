@@ -34,7 +34,7 @@
       school_id = profile?.school_id ?? null;
     }
 
-    const { error } = await landing
+    const { data: inserted, error } = await landing
       .from('requests')
       .insert([
         {
@@ -46,7 +46,9 @@
           contact_phone,
           message
         }
-      ]);
+      ])
+      .select('id')
+      .single();
 
     isLoading = false;
 
@@ -55,6 +57,15 @@
       errorMessage = 'Hubo un error al enviar tu solicitud. Intenta nuevamente o contáctanos por teléfono.';
     } else {
       isSuccess = true;
+      // Avisa a NMF por mail. Fire-and-forget: si falla, no debe romper
+      // la confirmación que ya vio el usuario.
+      if (inserted?.id) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'solicitud', requestId: inserted.id })
+        }).catch(() => {});
+      }
     }
   }
 </script>
