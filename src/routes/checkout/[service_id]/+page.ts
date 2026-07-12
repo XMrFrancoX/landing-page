@@ -5,12 +5,15 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async ({ params }) => {
   const serviceId = params.service_id;
 
-  // Intentamos obtener el servicio de Supabase
-  const { data, error: sbError } = await landing
-    .from('services')
-    .select('*')
-    .eq('id', serviceId)
-    .single();
+  // Intentamos obtener el servicio de Supabase (landing es null server-side
+  // fuera del browser: cae al fallback de abajo en vez de romper el load)
+  let data: { id: number; name: string; description: string; price: string } | null = null;
+  try {
+    const result = await landing.from('services').select('*').eq('id', serviceId).single();
+    data = result.data;
+  } catch {
+    // sin cliente disponible (SSR/build) — seguimos al fallback
+  }
 
   if (data) {
     return {
