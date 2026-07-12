@@ -14,5 +14,11 @@ export default defineConfig({
 			},
 			adapter: adapter()
 		})
-	]
+	],
+	// Puerto fijo para poder correr esto y Agenda Educativa (5174) en
+	// paralelo sin que uno le pise el puerto al otro.
+	server: {
+		port: 5173,
+		strictPort: true
+	}
 });

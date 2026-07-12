@@ -131,14 +131,19 @@
           </button>
         </form>
 
-        <div class="mt-6 text-center">
+        <div class="mt-6 text-center space-y-2">
           <button
             type="button"
             onclick={() => { isRegister = !isRegister; errorMessage = ''; }}
-            class="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            class="block w-full text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
             {isRegister ? '¿Ya tenés cuenta? Iniciá sesión' : '¿No tenés cuenta? Registrate como cliente'}
           </button>
+          {#if !isRegister}
+            <a href="/recuperar-password" class="block text-sm text-slate-500 hover:text-primary transition-colors">
+              ¿Olvidaste tu contraseña?
+            </a>
+          {/if}
         </div>
       </div>
     </div>
