@@ -1,16 +1,23 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { Building2, Users, Plus, Trash2, Upload } from 'lucide-svelte';
+  import { Building2, Users, Plus, Trash2, Upload, UserPlus, CheckCircle2 } from 'lucide-svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
-  let { data } = $props();
+  let { data, form } = $props();
 
   let newSchoolName = $state('');
   const roleLabels: Record<string, string> = {
     student: 'Alumno/a', tutor: 'Tutor/a', teacher: 'Docente',
     director: 'Director', admin: 'Admin. Escuela', superadmin: 'Super Admin', client: 'Cliente'
   };
+
+  let creatingUser = $state(false);
+  let newUserEmail = $state('');
+  let newUserFullName = $state('');
+  let newUserPassword = $state('');
+  let newUserRole = $state('admin');
+  let newUserSchoolId = $state('');
 
   let deleteSchoolDialogOpen = $state(false);
   let schoolFormToDelete: HTMLFormElement | null = null;
@@ -98,6 +105,54 @@
         <p class="text-sm text-muted-foreground text-center py-6">No hay escuelas creadas.</p>
       {/each}
     </div>
+  </div>
+
+  <div class="rounded-2xl border bg-card shadow-sm p-5">
+    <h2 class="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><UserPlus class="h-5 w-5 text-primary" /> Crear cuenta de cliente</h2>
+    <p class="text-sm text-muted-foreground -mt-3 mb-4">Para altas manuales (ej. un cliente que ya pagó y le pasamos una cuenta armada). Va a tener que cambiar esta contraseña la primera vez que entre.</p>
+
+    {#if form?.createdEmail}
+      <div class="mb-4 p-3 rounded-md bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 text-sm border border-green-100 dark:border-green-900 flex items-center gap-2">
+        <CheckCircle2 class="h-4 w-4 shrink-0" />
+        Cuenta creada para {form.createdEmail}. Pasale el correo y la contraseña que elegiste — se le va a pedir cambiarla al ingresar.
+      </div>
+    {/if}
+
+    <form
+      method="POST"
+      action="?/createUser"
+      class="grid gap-3 sm:grid-cols-2"
+      use:enhance={() => {
+        creatingUser = true;
+        return async ({ result, update }) => {
+          creatingUser = false;
+          if (result.type === 'success') {
+            newUserEmail = '';
+            newUserFullName = '';
+            newUserPassword = '';
+            newUserSchoolId = '';
+            await invalidateAll();
+          }
+          await update();
+        };
+      }}
+    >
+      <input type="text" name="full_name" bind:value={newUserFullName} placeholder="Nombre completo" class="h-10 rounded-md border border-input px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      <input type="email" name="email" bind:value={newUserEmail} required placeholder="correo@ejemplo.com" class="h-10 rounded-md border border-input px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      <input type="text" name="password" bind:value={newUserPassword} required minlength="6" placeholder="Contraseña temporal" class="h-10 rounded-md border border-input px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      <select name="role" bind:value={newUserRole} class="h-10 rounded-md border border-input px-3 text-sm bg-card">
+        <option value="admin">Admin. Escuela</option>
+        <option value="director">Director</option>
+        <option value="client">Cliente</option>
+      </select>
+      <select name="school_id" bind:value={newUserSchoolId} class="h-10 rounded-md border border-input px-3 text-sm bg-card sm:col-span-2">
+        <option value="">Sin escuela asignada</option>
+        {#each data.schools as school}<option value={school.id}>{school.name}</option>{/each}
+      </select>
+      <button type="submit" disabled={creatingUser} class="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 sm:col-span-2 disabled:opacity-50">
+        {creatingUser ? 'Creando...' : 'Crear cuenta'}
+      </button>
+    </form>
   </div>
 
   <div class="rounded-2xl border bg-card shadow-sm p-5">

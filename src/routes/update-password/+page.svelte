@@ -80,6 +80,9 @@
     }
 
     isSuccess = true;
+    // Si esta contraseña era la temporal que le asignó el superadmin al
+    // crear la cuenta, ya la cambió — no hay que volver a pedírsela.
+    await supabase.from('profiles').update({ must_change_password: false }).eq('id', session.user.id);
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')

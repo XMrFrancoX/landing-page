@@ -141,7 +141,7 @@
       <div class="container mx-auto px-4 relative z-10">
         <div class="max-w-4xl mx-auto text-center space-y-8">
           <div class="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary mb-4">
-            🚀 Innovación y Conocimiento para el Futuro
+            Innovación y Conocimiento para el Futuro
           </div>
           <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-foreground">
             Transformamos la <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">gestión educativa</span> con tecnología.
@@ -193,7 +193,7 @@
               <div>
                 <div class="mb-4 text-2xl font-bold text-primary">{service.price}</div>
                 <a href="/checkout/{service.id}" class="inline-flex w-full h-10 items-center justify-center rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background shadow transition-colors hover:bg-accent hover:text-white group-hover:bg-primary group-hover:text-primary-foreground">
-                  Contratar <ChevronRight class="ml-2 h-4 w-4" />
+                  Contactar <ChevronRight class="ml-2 h-4 w-4" />
                 </a>
               </div>
             </div>

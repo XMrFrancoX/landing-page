@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '$lib/supabase.server';
 import { dev } from '$app/environment';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
   event.locals.supabase = createSupabaseServerClient(
@@ -40,13 +40,24 @@ export const handle: Handle = async ({ event, resolve }) => {
   if (user) {
     const { data: profile } = await event.locals.supabase
       .from('profiles')
-      .select('id, full_name, role, school_id')
+      .select('id, full_name, role, school_id, must_change_password')
       .eq('id', user.id)
       .single();
 
     event.locals.profile = profile ?? null;
   } else {
     event.locals.profile = null;
+  }
+
+  // Cuentas creadas manualmente por el superadmin (con contraseña temporal)
+  // no pueden navegar a ningún lado hasta que elijan su propia contraseña.
+  if (
+    user &&
+    event.locals.profile?.must_change_password &&
+    event.url.pathname !== '/update-password' &&
+    event.url.pathname !== '/logout'
+  ) {
+    throw redirect(303, '/update-password');
   }
 
   return resolve(event, {

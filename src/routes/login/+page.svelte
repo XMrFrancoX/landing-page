@@ -49,11 +49,13 @@
       } else {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, must_change_password')
           .eq('id', data.user.id)
           .single();
 
-        if (profile?.role === 'superadmin') {
+        if (profile?.must_change_password) {
+          goto('/update-password');
+        } else if (profile?.role === 'superadmin') {
           goto('/admin');
         } else {
           goto('/cliente');

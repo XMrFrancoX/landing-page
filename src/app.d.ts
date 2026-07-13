@@ -22,6 +22,7 @@ declare global {
 				full_name: string | null;
 				role: 'teacher' | 'director' | 'admin' | 'superadmin' | 'student' | 'tutor' | 'client';
 				school_id: string | null;
+				must_change_password?: boolean;
 			} | null;
 		}
 		// interface PageData {}

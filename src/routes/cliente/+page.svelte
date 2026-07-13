@@ -175,34 +175,34 @@
 <div class="space-y-8">
   <!-- Welcome -->
   <div>
-    <h1 class="text-2xl font-bold tracking-tight text-foreground">¡Hola! 👋</h1>
+    <h1 class="text-2xl font-bold tracking-tight text-foreground">¡Hola!</h1>
     <p class="text-sm text-muted-foreground mt-1">
       {schoolId ? 'Desde acá podés ver el estado de las solicitudes de contratación de tu institución.' : 'Desde acá podés ver el estado de tus solicitudes de contratación.'}
     </p>
   </div>
 
   <!-- Stats -->
-  <div class="grid grid-cols-3 gap-4">
-    <div class="rounded-2xl border bg-card p-5 shadow-sm">
-      <div class="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-        <Clock class="h-5 w-5" />
+  <div class="grid grid-cols-3 gap-2 sm:gap-4">
+    <div class="rounded-2xl border bg-card p-3 sm:p-5 shadow-sm">
+      <div class="mb-2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+        <Clock class="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
-      <div class="text-2xl font-bold text-foreground">{pendingCount}</div>
-      <div class="text-xs font-medium text-muted-foreground mt-0.5">En Revisión</div>
+      <div class="text-lg sm:text-2xl font-bold text-foreground">{pendingCount}</div>
+      <div class="text-[11px] sm:text-xs font-medium text-muted-foreground mt-0.5">En Revisión</div>
     </div>
-    <div class="rounded-2xl border bg-card p-5 shadow-sm">
-      <div class="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-        <AlertCircle class="h-5 w-5" />
+    <div class="rounded-2xl border bg-card p-3 sm:p-5 shadow-sm">
+      <div class="mb-2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+        <AlertCircle class="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
-      <div class="text-2xl font-bold text-foreground">{contactedCount}</div>
-      <div class="text-xs font-medium text-muted-foreground mt-0.5">En Proceso</div>
+      <div class="text-lg sm:text-2xl font-bold text-foreground">{contactedCount}</div>
+      <div class="text-[11px] sm:text-xs font-medium text-muted-foreground mt-0.5">En Proceso</div>
     </div>
-    <div class="rounded-2xl border bg-card p-5 shadow-sm">
-      <div class="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600">
-        <CheckCircle2 class="h-5 w-5" />
+    <div class="rounded-2xl border bg-card p-3 sm:p-5 shadow-sm">
+      <div class="mb-2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-green-100 text-green-600">
+        <CheckCircle2 class="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
-      <div class="text-2xl font-bold text-foreground">{resolvedCount}</div>
-      <div class="text-xs font-medium text-muted-foreground mt-0.5">Finalizados</div>
+      <div class="text-lg sm:text-2xl font-bold text-foreground">{resolvedCount}</div>
+      <div class="text-[11px] sm:text-xs font-medium text-muted-foreground mt-0.5">Finalizados</div>
     </div>
   </div>
 
@@ -352,7 +352,7 @@
 <ConfirmDialog
   bind:open={bajaDialogOpen}
   title="Solicitar baja del servicio"
-  description="Le avisamos a NMF para que se contacte con vos y coordine la baja."
+  description="Le avisamos a NMF para que se contacte con usted y coordine la baja."
   confirmLabel="Solicitar baja"
   destructive
   onConfirm={() => { if (requestIdPendingBaja) requestBaja(requestIdPendingBaja); }}
