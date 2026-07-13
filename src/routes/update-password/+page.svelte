@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { KeyRound, ArrowLeft } from 'lucide-svelte';
+  import { KeyRound, ArrowLeft, Sun, Moon } from 'lucide-svelte';
+  import { getInitialTheme, applyTheme, type Theme } from '$lib/theme';
 
   let password = $state('');
   let confirmPassword = $state('');
@@ -10,7 +11,15 @@
   let isSuccess = $state(false);
   let linkExpired = $state(false);
 
+  let theme = $state<Theme>('light');
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+    applyTheme(theme);
+  }
+
   onMount(async () => {
+    theme = getInitialTheme();
+
     const url = new URL(window.location.href);
     const code = url.searchParams.get('code');
 
@@ -86,8 +95,8 @@
   <title>Restablecer Contraseña — NMF Soluciones Educativas</title>
 </svelte:head>
 
-<div class="flex flex-col min-h-screen bg-slate-50">
-  <header class="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+<div class="flex flex-col min-h-screen bg-muted">
+  <header class="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
     <div class="container mx-auto px-4 h-20 flex items-center justify-between">
       <a href="/" class="flex items-center gap-3">
         <img src="/logo.png" alt="NMF Soluciones Educativas" class="h-12 w-12 object-contain" />
@@ -96,42 +105,56 @@
           <span class="text-xs font-semibold text-secondary-foreground uppercase tracking-widest">Soluciones Educativas</span>
         </div>
       </a>
-      <a href="/login" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-primary transition-colors">
-        <ArrowLeft class="h-4 w-4" />
-        Volver a iniciar sesión
-      </a>
+      <div class="flex items-center gap-4">
+        <button
+          onclick={toggleTheme}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm hover:text-primary transition-colors"
+          aria-label={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+          title={theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+        >
+          {#if theme === 'light'}
+            <Moon class="h-4 w-4" />
+          {:else}
+            <Sun class="h-4 w-4" />
+          {/if}
+        </button>
+        <a href="/login" class="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+          <ArrowLeft class="h-4 w-4" />
+          Volver a iniciar sesión
+        </a>
+      </div>
     </div>
   </header>
 
   <main class="flex-1 flex items-center justify-center px-4 py-16">
     <div class="w-full max-w-sm">
-      <div class="rounded-2xl border bg-white p-8 shadow-sm">
+      <div class="rounded-2xl border bg-card p-8 shadow-sm">
         <div class="text-center mb-6">
-          <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Restablecer Contraseña</h1>
-          <p class="mt-1.5 text-sm text-slate-600">Elegí una nueva contraseña para tu cuenta.</p>
+          <h1 class="text-2xl font-extrabold tracking-tight text-foreground">Restablecer Contraseña</h1>
+          <p class="mt-1.5 text-sm text-muted-foreground">Elegí una nueva contraseña para tu cuenta.</p>
         </div>
 
         {#if linkExpired}
-          <div class="p-3 rounded-md bg-red-50 text-red-600 text-sm border border-red-100 text-center space-y-3">
+          <div class="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-900 text-center space-y-3">
             <p>El enlace de recuperación es inválido o expiró.</p>
             <a href="/recuperar-password" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">
               Solicitar nuevo enlace
             </a>
           </div>
         {:else if isSuccess}
-          <div class="p-3 rounded-md bg-green-50 text-green-700 text-sm border border-green-100 text-center">
+          <div class="p-3 rounded-md bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 text-sm border border-green-100 dark:border-green-900 text-center">
             ¡Contraseña actualizada! Redirigiendo...
           </div>
         {:else}
           <form class="space-y-5" onsubmit={handleSubmit}>
             {#if errorMessage}
-              <div class="p-3 rounded-md bg-red-50 text-red-600 text-sm border border-red-100 text-center">
+              <div class="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-900 text-center">
                 {errorMessage}
               </div>
             {/if}
 
             <div class="space-y-2">
-              <label for="password" class="text-sm font-medium text-slate-900">Nueva contraseña</label>
+              <label for="password" class="text-sm font-medium text-foreground">Nueva contraseña</label>
               <input
                 id="password"
                 type="password"
@@ -144,7 +167,7 @@
             </div>
 
             <div class="space-y-2">
-              <label for="confirmPassword" class="text-sm font-medium text-slate-900">Confirmar contraseña</label>
+              <label for="confirmPassword" class="text-sm font-medium text-foreground">Confirmar contraseña</label>
               <input
                 id="confirmPassword"
                 type="password"
@@ -175,7 +198,7 @@
     </div>
   </main>
 
-  <footer class="border-t bg-white py-6 text-center text-sm text-slate-500">
+  <footer class="border-t bg-card py-6 text-center text-sm text-muted-foreground">
     © {new Date().getFullYear()} NMF Soluciones Educativas. Todos los derechos reservados.
   </footer>
 </div>

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { landing } from '$lib/supabaseClient';
   import { Plus, Pencil, Trash2, X, Package, RefreshCcw, ToggleLeft, ToggleRight, Check } from 'lucide-svelte';
+  import { getServiceIcon, SERVICE_ICON_OPTIONS } from '$lib/serviceIcons';
 
   let services = $state<any[]>([]);
   let isLoading = $state(true);
@@ -16,6 +17,8 @@
   let formPrice = $state('');
   let formFeatures = $state('');
   let formIsActive = $state(true);
+  let formIcon = $state('Package');
+  let FormIconPreview = $derived(getServiceIcon(formIcon));
 
   onMount(async () => {
     await fetchServices();
@@ -39,6 +42,7 @@
     formPrice = '';
     formFeatures = '';
     formIsActive = true;
+    formIcon = 'Package';
     showForm = true;
   }
 
@@ -49,6 +53,7 @@
     formPrice = service.price?.toString() || '';
     formFeatures = Array.isArray(service.features) ? service.features.join(', ') : '';
     formIsActive = service.is_active ?? true;
+    formIcon = service.icon || 'Package';
     showForm = true;
   }
 
@@ -71,6 +76,7 @@
       price: formPrice,
       features: featuresArray,
       is_active: formIsActive,
+      icon: formIcon,
     };
 
     if (editingService) {
@@ -115,13 +121,13 @@
   <!-- Header -->
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Servicios</h1>
-      <p class="text-sm text-slate-600 mt-1">Administra los servicios que ofrece NMF Soluciones Educativas.</p>
+      <h1 class="text-2xl font-bold tracking-tight text-foreground">Servicios</h1>
+      <p class="text-sm text-muted-foreground mt-1">Administra los servicios que ofrece NMF Soluciones Educativas.</p>
     </div>
     <div class="flex items-center gap-2">
       <button
         onclick={fetchServices}
-        class="inline-flex items-center gap-2 h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 transition-colors"
+        class="inline-flex items-center gap-2 h-10 rounded-md border border-border bg-card px-4 text-sm font-medium text-muted-foreground shadow-sm hover:bg-muted transition-colors"
       >
         <RefreshCcw class="h-4 w-4" />
         Actualizar
@@ -138,17 +144,17 @@
 
   <!-- Services Grid -->
   {#if isLoading}
-    <div class="rounded-2xl border bg-white shadow-sm p-12 text-center text-slate-500 text-sm">
+    <div class="rounded-2xl border bg-card shadow-sm p-12 text-center text-muted-foreground text-sm">
       <div class="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
       Cargando servicios...
     </div>
   {:else if services.length === 0}
-    <div class="rounded-2xl border bg-white shadow-sm p-12 text-center">
-      <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
+    <div class="rounded-2xl border bg-card shadow-sm p-12 text-center">
+      <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground mb-4">
         <Package class="h-7 w-7" />
       </div>
-      <h3 class="text-sm font-semibold text-slate-900 mb-1">No hay servicios</h3>
-      <p class="text-sm text-slate-500 mb-4">Comienza agregando tu primer servicio.</p>
+      <h3 class="text-sm font-semibold text-foreground mb-1">No hay servicios</h3>
+      <p class="text-sm text-muted-foreground mb-4">Comienza agregando tu primer servicio.</p>
       <button
         onclick={openAddForm}
         class="inline-flex items-center gap-2 h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
@@ -160,19 +166,25 @@
   {:else}
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {#each services as service}
-        <div class="rounded-2xl border bg-white shadow-sm overflow-hidden flex flex-col">
+        {@const ServiceIcon = getServiceIcon(service.icon)}
+        <div class="rounded-2xl border bg-card shadow-sm overflow-hidden flex flex-col">
           <!-- Card Header -->
           <div class="p-5 flex-1">
             <div class="flex items-start justify-between gap-3 mb-3">
-              <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-slate-900 truncate">{service.name}</h3>
-                {#if service.price}
-                  <p class="text-lg font-bold text-primary mt-1">{service.price}</p>
-                {/if}
+              <div class="flex items-start gap-3 flex-1 min-w-0">
+                <div class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <ServiceIcon class="h-4 w-4" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-semibold text-foreground truncate">{service.name}</h3>
+                  {#if service.price}
+                    <p class="text-lg font-bold text-primary mt-1">{service.price}</p>
+                  {/if}
+                </div>
               </div>
               <button
                 onclick={() => toggleActive(service)}
-                class="shrink-0 transition-colors {service.is_active ? 'text-green-600' : 'text-slate-300 hover:text-slate-400'}"
+                class="shrink-0 transition-colors {service.is_active ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-muted-foreground'}"
                 title={service.is_active ? 'Activo — Click para desactivar' : 'Inactivo — Click para activar'}
               >
                 {#if service.is_active}
@@ -185,20 +197,20 @@
 
             <!-- Status Badge -->
             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mb-3
-              {service.is_active ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500'}">
+              {service.is_active ? 'bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300' : 'bg-muted text-muted-foreground'}">
               {service.is_active ? 'Activo' : 'Inactivo'}
             </span>
 
             {#if service.description}
-              <p class="text-sm text-slate-600 leading-relaxed line-clamp-3 mb-3">{service.description}</p>
+              <p class="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-3">{service.description}</p>
             {/if}
 
             <!-- Features -->
             {#if service.features && service.features.length > 0}
               <div class="space-y-1.5">
                 {#each service.features as feature}
-                  <div class="flex items-start gap-2 text-sm text-slate-600">
-                    <Check class="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                  <div class="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Check class="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                     <span>{feature}</span>
                   </div>
                 {/each}
@@ -207,10 +219,10 @@
           </div>
 
           <!-- Card Actions -->
-          <div class="px-5 py-3 border-t bg-slate-50/50 flex items-center justify-end gap-2">
+          <div class="px-5 py-3 border-t bg-muted/50 flex items-center justify-end gap-2">
             <button
               onclick={() => openEditForm(service)}
-              class="inline-flex items-center gap-1.5 h-8 rounded-md border bg-white px-3 text-xs font-medium text-slate-600 hover:text-primary hover:border-primary/30 transition-colors"
+              class="inline-flex items-center gap-1.5 h-8 rounded-md border bg-card px-3 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
             >
               <Pencil class="h-3.5 w-3.5" />
               Editar
@@ -224,14 +236,14 @@
               </button>
               <button
                 onclick={() => deleteConfirmId = null}
-                class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white text-slate-400 hover:text-slate-600 transition-colors"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-card text-muted-foreground hover:text-muted-foreground transition-colors"
               >
                 <X class="h-3.5 w-3.5" />
               </button>
             {:else}
               <button
                 onclick={() => deleteConfirmId = service.id}
-                class="inline-flex items-center gap-1.5 h-8 rounded-md border bg-white px-3 text-xs font-medium text-slate-400 hover:text-red-600 hover:border-red-200 transition-colors"
+                class="inline-flex items-center gap-1.5 h-8 rounded-md border bg-card px-3 text-xs font-medium text-muted-foreground hover:text-red-600 hover:border-red-200 dark:hover:border-red-800 transition-colors"
               >
                 <Trash2 class="h-3.5 w-3.5" />
                 Eliminar
@@ -247,12 +259,12 @@
 <!-- Add/Edit Modal -->
 {#if showForm}
   <div class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" onclick={closeForm}>
-    <div class="bg-white rounded-2xl border shadow-xl w-full max-w-lg overflow-hidden" onclick={(e) => e.stopPropagation()}>
+    <div class="bg-card rounded-2xl border shadow-xl w-full max-w-lg overflow-hidden" onclick={(e) => e.stopPropagation()}>
       <div class="flex items-center justify-between p-5 border-b">
-        <h3 class="text-lg font-bold text-slate-900">
+        <h3 class="text-lg font-bold text-foreground">
           {editingService ? 'Editar Servicio' : 'Agregar Servicio'}
         </h3>
-        <button onclick={closeForm} class="text-slate-400 hover:text-slate-600">
+        <button onclick={closeForm} class="text-muted-foreground hover:text-muted-foreground">
           <X class="h-5 w-5" />
         </button>
       </div>
@@ -260,7 +272,7 @@
       <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="p-5 space-y-4">
         <!-- Name -->
         <div>
-          <label for="service-name" class="block text-sm font-medium text-slate-700 mb-1.5">Nombre del servicio</label>
+          <label for="service-name" class="block text-sm font-medium text-foreground mb-1.5">Nombre del servicio</label>
           <input
             id="service-name"
             type="text"
@@ -273,7 +285,7 @@
 
         <!-- Description -->
         <div>
-          <label for="service-desc" class="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+          <label for="service-desc" class="block text-sm font-medium text-foreground mb-1.5">Descripción</label>
           <textarea
             id="service-desc"
             bind:value={formDescription}
@@ -285,7 +297,7 @@
 
         <!-- Price -->
         <div>
-          <label for="service-price" class="block text-sm font-medium text-slate-700 mb-1.5">Precio</label>
+          <label for="service-price" class="block text-sm font-medium text-foreground mb-1.5">Precio</label>
           <input
             id="service-price"
             type="text"
@@ -297,7 +309,7 @@
 
         <!-- Features -->
         <div>
-          <label for="service-features" class="block text-sm font-medium text-slate-700 mb-1.5">Características</label>
+          <label for="service-features" class="block text-sm font-medium text-foreground mb-1.5">Características</label>
           <input
             id="service-features"
             type="text"
@@ -305,7 +317,26 @@
             placeholder="Separadas por coma: Clases en vivo, Material digital, Soporte 24/7"
             class="h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <p class="text-xs text-slate-400 mt-1">Separa las características con comas.</p>
+          <p class="text-xs text-muted-foreground mt-1">Separa las características con comas.</p>
+        </div>
+
+        <!-- Icon -->
+        <div>
+          <label for="service-icon" class="block text-sm font-medium text-foreground mb-1.5">Ícono</label>
+          <div class="flex items-center gap-3">
+            <div class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border bg-muted text-primary">
+              <FormIconPreview class="h-5 w-5" />
+            </div>
+            <select
+              id="service-icon"
+              bind:value={formIcon}
+              class="h-11 flex-1 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {#each SERVICE_ICON_OPTIONS as iconName}
+                <option value={iconName}>{iconName}</option>
+              {/each}
+            </select>
+          </div>
         </div>
 
         <!-- Active -->
@@ -314,9 +345,9 @@
             id="service-active"
             type="checkbox"
             bind:checked={formIsActive}
-            class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+            class="h-4 w-4 rounded border-border text-primary focus:ring-primary"
           />
-          <label for="service-active" class="text-sm font-medium text-slate-700">Servicio activo</label>
+          <label for="service-active" class="text-sm font-medium text-foreground">Servicio activo</label>
         </div>
 
         <!-- Form Actions -->
@@ -324,7 +355,7 @@
           <button
             type="button"
             onclick={closeForm}
-            class="h-10 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            class="h-10 rounded-md border border-border bg-card px-4 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
             Cancelar
           </button>

@@ -1,7 +1,16 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
-  import { KeyRound, ArrowLeft } from 'lucide-svelte';
+  import { KeyRound, ArrowLeft, Sun, Moon } from 'lucide-svelte';
+  import { onMount } from 'svelte';
+  import { getInitialTheme, applyTheme, type Theme } from '$lib/theme';
+
+  let theme = $state<Theme>('light');
+  onMount(() => { theme = getInitialTheme(); });
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+    applyTheme(theme);
+  }
 
   let email = $state('');
   let password = $state('');
@@ -54,9 +63,9 @@
   }
 </script>
 
-<div class="flex flex-col min-h-screen bg-slate-50">
+<div class="flex flex-col min-h-screen bg-muted">
   <!-- Mismo Header que la landing -->
-  <header class="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+  <header class="border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
     <div class="container mx-auto px-4 h-20 flex items-center justify-between">
       <a href="/" class="flex items-center gap-3">
         <img src="/logo.png" alt="NMF Soluciones Educativas" class="h-12 w-12 object-contain" />
@@ -65,35 +74,49 @@
           <span class="text-xs font-semibold text-secondary-foreground uppercase tracking-widest">Soluciones Educativas</span>
         </div>
       </a>
-      <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-primary transition-colors">
-        <ArrowLeft class="h-4 w-4" />
-        Volver al inicio
-      </a>
+      <div class="flex items-center gap-4">
+        <button
+          onclick={toggleTheme}
+          class="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm hover:text-primary transition-colors"
+          aria-label={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+          title={theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+        >
+          {#if theme === 'light'}
+            <Moon class="h-4 w-4" />
+          {:else}
+            <Sun class="h-4 w-4" />
+          {/if}
+        </button>
+        <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+          <ArrowLeft class="h-4 w-4" />
+          Volver al inicio
+        </a>
+      </div>
     </div>
   </header>
 
   <!-- Login centrado -->
   <main class="flex-1 flex items-center justify-center px-4 py-16">
     <div class="w-full max-w-sm">
-      <div class="rounded-2xl border bg-white p-8 shadow-sm">
+      <div class="rounded-2xl border bg-card p-8 shadow-sm">
         <div class="text-center mb-6">
-          <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">
+          <h1 class="text-2xl font-extrabold tracking-tight text-foreground">
             {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
           </h1>
-          <p class="mt-1.5 text-sm text-slate-600">
+          <p class="mt-1.5 text-sm text-muted-foreground">
             {isRegister ? 'Registrate para acceder a tu panel de cliente.' : 'Ingresá tus credenciales para continuar.'}
           </p>
         </div>
 
         <form class="space-y-5" onsubmit={handleSubmit}>
           {#if errorMessage}
-            <div class="p-3 rounded-md bg-red-50 text-red-600 text-sm border border-red-100 text-center">
+            <div class="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 text-sm border border-red-100 dark:border-red-900 text-center">
               {errorMessage}
             </div>
           {/if}
 
           <div class="space-y-2">
-            <label for="email" class="text-sm font-medium text-slate-900">Correo electrónico</label>
+            <label for="email" class="text-sm font-medium text-foreground">Correo electrónico</label>
             <input
               id="email"
               type="email"
@@ -105,7 +128,7 @@
           </div>
 
           <div class="space-y-2">
-            <label for="password" class="text-sm font-medium text-slate-900">Contraseña</label>
+            <label for="password" class="text-sm font-medium text-foreground">Contraseña</label>
             <input
               id="password"
               type="password"
@@ -140,7 +163,7 @@
             {isRegister ? '¿Ya tenés cuenta? Iniciá sesión' : '¿No tenés cuenta? Registrate como cliente'}
           </button>
           {#if !isRegister}
-            <a href="/recuperar-password" class="block text-sm text-slate-500 hover:text-primary transition-colors">
+            <a href="/recuperar-password" class="block text-sm text-muted-foreground hover:text-primary transition-colors">
               ¿Olvidaste tu contraseña?
             </a>
           {/if}
@@ -150,7 +173,7 @@
   </main>
 
   <!-- Footer simple -->
-  <footer class="border-t bg-white py-6 text-center text-sm text-slate-500">
+  <footer class="border-t bg-card py-6 text-center text-sm text-muted-foreground">
     © {new Date().getFullYear()} NMF Soluciones Educativas. Todos los derechos reservados.
   </footer>
 </div>
