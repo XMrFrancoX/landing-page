@@ -41,6 +41,54 @@ export const actions: Actions = {
     return { success: true };
   },
 
+  createUser: async ({ request, locals: { profile } }) => {
+    const denied = requireSuperadmin(profile);
+    if (denied) return denied;
+
+    const formData = await request.formData();
+    const email = (formData.get('email') as string)?.trim();
+    const fullName = (formData.get('full_name') as string)?.trim();
+    const password = formData.get('password') as string;
+    const role = formData.get('role') as string;
+    let schoolId = formData.get('school_id') as string | null;
+    if (schoolId === '') schoolId = null;
+
+    if (!email || !password) return fail(400, { error: 'Correo y contraseña son obligatorios.' });
+    if (password.length < 6) return fail(400, { error: 'La contraseña debe tener al menos 6 caracteres.' });
+
+    const adminClient = createSupabaseAdminClient();
+
+    const { data, error } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName }
+    });
+
+    if (error || !data?.user) {
+      return fail(500, { error: `No se pudo crear la cuenta: ${error?.message ?? 'error desconocido'}` });
+    }
+
+    // El trigger de creación de perfil (compartido con Agenda Educativa) ya
+    // insertó una fila en profiles — acá solo la completamos con rol/escuela
+    // y marcamos que tiene que elegir su propia contraseña al entrar.
+    const { error: updateError } = await adminClient
+      .from('profiles')
+      .update({
+        full_name: fullName || null,
+        role: role || 'client',
+        school_id: schoolId,
+        must_change_password: true
+      })
+      .eq('id', data.user.id);
+
+    if (updateError) {
+      return fail(500, { error: 'Se creó la cuenta pero no se pudo completar el perfil: ' + updateError.message });
+    }
+
+    return { success: true, createdEmail: email };
+  },
+
   updateUser: async ({ request, locals: { profile } }) => {
     const denied = requireSuperadmin(profile);
     if (denied) return denied;

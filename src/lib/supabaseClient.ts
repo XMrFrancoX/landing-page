@@ -7,7 +7,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // createBrowserClient (en vez del createClient de supabase-js a secas)
 // persiste la sesión también en cookies, no solo localStorage, para que
 // hooks.server.ts pueda leerla y hacer chequeos de rol server-side
-// (ej. /admin/superadmin).
+// (ej. /admin/escuelas).
 //
 // Solo se instancia en el browser: SvelteKit evalúa este módulo también
 // server-side (SSR y el paso de análisis post-build), donde

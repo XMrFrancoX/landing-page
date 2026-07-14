@@ -28,7 +28,7 @@ export function createSupabaseServerClient(
 /**
  * Create a Supabase admin client using the service_role key.
  * BYPASSES RLS — only use server-side for trusted operations
- * (ej. gestión cross-tenant de schools/profiles en /admin/superadmin).
+ * (ej. gestión cross-tenant de schools/profiles en /admin/escuelas).
  */
 export function createSupabaseAdminClient() {
   return createClient(supabaseUrl, env.SUPABASE_SERVICE_ROLE_KEY, {
