@@ -260,7 +260,7 @@
               <Phone class="h-6 w-6" />
             </div>
             <h3 class="text-lg font-bold text-foreground mb-1">Teléfono</h3>
-            <p class="text-sm text-muted-foreground">+54 9 11 1234-5678</p>
+            <p class="text-sm text-muted-foreground">+54 9 11 6888-0153</p>
           </div>
 
           <!-- Location -->
@@ -305,7 +305,7 @@
           </li>
           <li class="flex items-center gap-2">
             <Phone class="h-4 w-4 text-slate-500" />
-            +54 9 11 1234-5678
+            +54 9 11 6888-0153
           </li>
           <li class="flex items-center gap-2">
             <MapPin class="h-4 w-4 text-slate-500" />
