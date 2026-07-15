@@ -24,3 +24,4 @@ vite.config.ts.timestamp-*
 
 # Supabase CLI local cache
 supabase/.temp
+desktop.ini
