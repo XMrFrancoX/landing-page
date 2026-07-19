@@ -7,8 +7,10 @@
   let { data, form } = $props();
 
   let newSchoolName = $state('');
+  // Rol global de toda la plataforma (Agenda Educativa/Landing/Inventario
+  // PCs comparten esta misma columna) — 'intern' solo lo usa Inventario.
   const roleLabels: Record<string, string> = {
-    student: 'Alumno/a', tutor: 'Tutor/a', teacher: 'Docente',
+    student: 'Alumno/a', tutor: 'Tutor/a', teacher: 'Docente', intern: 'Pasante (Inventario)',
     director: 'Director', admin: 'Admin. Escuela', superadmin: 'Super Admin', client: 'Cliente'
   };
 
@@ -98,6 +100,12 @@
               <input type="hidden" name="school_id" value={school.id} />
               <input type="hidden" name="current_value" value={school.whatsapp_enabled ? 'true' : 'false'} />
               <button type="submit" class="h-8 rounded-md border px-3 text-xs font-medium {school.whatsapp_enabled ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900' : 'bg-card text-muted-foreground'}">WhatsApp {school.whatsapp_enabled ? 'ON' : 'OFF'}</button>
+            </form>
+
+            <form method="POST" action="?/toggleInventarioStudentLaptops" use:enhance={() => async ({ result, update }) => { if (result.type === 'success') await invalidateAll(); else await update(); }}>
+              <input type="hidden" name="school_id" value={school.id} />
+              <input type="hidden" name="current_value" value={school.inventario_student_laptops_enabled ? 'true' : 'false'} />
+              <button type="submit" class="h-8 rounded-md border px-3 text-xs font-medium {school.inventario_student_laptops_enabled ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900' : 'bg-card text-muted-foreground'}" title="Inventario PCs: si esta escuela asigna laptops a alumnos">Laptops Alumnos {school.inventario_student_laptops_enabled ? 'ON' : 'OFF'}</button>
             </form>
           </div>
         </div>

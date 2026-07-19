@@ -16,8 +16,23 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
     .select('id, full_name, role, school_id, schools(name)')
     .order('created_at', { ascending: false });
 
+  // Config propia de Inventario PCs: no todas las escuelas asignan laptops a
+  // alumnos. El rol de usuario ya es global (una sola columna en profiles de
+  // arriba, compartida por las 3 apps) — nada que traer aparte para eso.
+  const { data: inventarioSettings } = await adminClient
+    .schema('inventario')
+    .from('school_settings')
+    .select('school_id, student_laptops_enabled');
+
+  const inventarioSettingsBySchool = new Map(
+    (inventarioSettings ?? []).map((s) => [s.school_id, s.student_laptops_enabled])
+  );
+
   return {
-    schools: schools ?? [],
+    schools: (schools ?? []).map((s) => ({
+      ...s,
+      inventario_student_laptops_enabled: inventarioSettingsBySchool.get(s.id) ?? true
+    })),
     profiles: profiles ?? []
   };
 };
@@ -228,6 +243,24 @@ export const actions: Actions = {
       .update({ whatsapp_enabled: !current })
       .eq('id', schoolId);
     if (error) return fail(500, { error: 'No se pudo actualizar la configuración de WhatsApp.' });
+    return { success: true };
+  },
+
+  // Inventario PCs: no todas las escuelas asignan laptops a alumnos.
+  toggleInventarioStudentLaptops: async ({ request, locals: { profile } }) => {
+    const denied = requireSuperadmin(profile);
+    if (denied) return denied;
+
+    const formData = await request.formData();
+    const schoolId = formData.get('school_id') as string;
+    const current = formData.get('current_value') === 'true';
+    if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
+
+    const { error } = await createSupabaseAdminClient()
+      .schema('inventario')
+      .from('school_settings')
+      .upsert({ school_id: schoolId, student_laptops_enabled: !current }, { onConflict: 'school_id' });
+    if (error) return fail(500, { error: 'No se pudo actualizar la configuración de laptops de alumno.' });
     return { success: true };
   }
 };
