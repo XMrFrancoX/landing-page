@@ -169,7 +169,7 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -182,6 +182,7 @@
     gap: 0.75rem;
   }
   .brand-name {
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 1.25rem;
     font-weight: 800;
     color: var(--color-foreground);
@@ -196,14 +197,18 @@
   .login-card {
     background: var(--color-card);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
+    border-radius: 24px;
     padding: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.14);
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
   }
+  :global(.dark) .login-card {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
   .login-card-header h2 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 1.375rem;
     font-weight: 800;
     color: var(--color-foreground);
@@ -218,7 +223,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    border-radius: var(--radius-md);
+    border-radius: 10px;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
   }
@@ -261,7 +266,7 @@
     padding: 0 0.875rem;
     background: transparent;
     border: 1px solid var(--color-input);
-    border-radius: var(--radius-md);
+    border-radius: 10px;
     color: var(--color-foreground);
     font-size: 0.9375rem;
     outline: none;
@@ -277,16 +282,23 @@
     justify-content: center;
     gap: 0.5rem;
     height: 2.75rem;
-    border-radius: var(--radius-md);
+    border-radius: 10px;
     background: var(--color-primary);
     color: var(--color-primary-foreground);
     font-size: 0.9375rem;
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
   }
-  .btn-login:hover:not(:disabled) { opacity: 0.92; }
+  .btn-login:hover:not(:disabled) {
+    background: #082846;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  }
+  :global(.dark) .btn-login:hover:not(:disabled) {
+    background: #e08c0a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
   .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
   .spinner {
     width: 16px;
