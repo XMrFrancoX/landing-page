@@ -5,6 +5,7 @@
   import { RefreshCcw, Eye, Trash2, X, Clock, Users, CheckCircle2, FileText, ChevronDown, ChevronUp, AlertOctagon, Send } from 'lucide-svelte';
 
   let requests = $state<any[]>([]);
+  let schools = $state<{ id: string; name: string }[]>([]);
   let messagesByRequest = $state<Record<string, any[]>>({});
   let isLoading = $state(true);
   let selectedRequest = $state<any>(null);
@@ -34,7 +35,7 @@
   ];
 
   onMount(async () => {
-    await fetchRequests();
+    await Promise.all([fetchRequests(), fetchSchools()]);
   });
 
   async function fetchRequests() {
@@ -49,6 +50,25 @@
       await fetchMessages();
     }
     isLoading = false;
+  }
+
+  async function fetchSchools() {
+    const { data } = await landing.schema('public').from('schools').select('id, name').order('name');
+    schools = data ?? [];
+  }
+
+  // Una solicitud pública nace SIN escuela vinculada (quien la completa
+  // todavía no tiene cuenta) -- si NMF crea la escuela después, nada las
+  // conecta automáticamente. Este selector es el puente manual entre las
+  // dos, para que /admin/escuelas sepa qué dominios ofrecerle a esa escuela.
+  async function updateSchool(id: string, schoolId: string) {
+    const { error } = await landing.from('requests').update({ school_id: schoolId || null }).eq('id', id);
+    if (!error) {
+      await fetchRequests();
+      toast.success(schoolId ? 'Escuela vinculada.' : 'Vínculo con escuela quitado.');
+    } else {
+      toast.error('No se pudo vincular la escuela.');
+    }
   }
 
   async function fetchMessages() {
@@ -222,6 +242,17 @@
                 <td class="p-4">
                   <div class="font-medium text-foreground">{req.contact_name}</div>
                   <div class="text-muted-foreground text-xs md:hidden">{req.contact_email}</div>
+                  <select
+                    value={req.school_id ?? ''}
+                    onchange={(e) => updateSchool(req.id, e.currentTarget.value)}
+                    class="mt-1 text-[11px] border rounded px-1.5 py-0.5 bg-card text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring max-w-[160px]"
+                    title="Vincular esta solicitud con una escuela ya creada"
+                  >
+                    <option value="">Sin vincular a escuela</option>
+                    {#each schools as school}
+                      <option value={school.id}>{school.name}</option>
+                    {/each}
+                  </select>
                 </td>
                 <td class="p-4 text-muted-foreground hidden md:table-cell">{req.contact_email}</td>
                 <td class="p-4 text-muted-foreground hidden lg:table-cell">{req.contact_phone || '—'}</td>
