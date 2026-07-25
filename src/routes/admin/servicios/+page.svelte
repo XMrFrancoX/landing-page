@@ -18,7 +18,17 @@
   let formFeatures = $state('');
   let formIsActive = $state(true);
   let formIcon = $state('Package');
+  let formServiceKey = $state('');
   let FormIconPreview = $derived(getServiceIcon(formIcon));
+
+  // Vincula esta tarjeta del catálogo con uno de los 3 servicios técnicos
+  // reales de la plataforma -- así /admin/escuelas sabe qué campo de
+  // dominio mostrarle a cada escuela según lo que tenga contratado.
+  const SERVICE_KEY_LABELS: Record<string, string> = {
+    fichero: 'Fichero Escolar',
+    agenda: 'Agenda Educativa',
+    inventario: 'Inventario PCs'
+  };
 
   onMount(async () => {
     await fetchServices();
@@ -43,6 +53,7 @@
     formFeatures = '';
     formIsActive = true;
     formIcon = 'Package';
+    formServiceKey = '';
     showForm = true;
   }
 
@@ -54,6 +65,7 @@
     formFeatures = Array.isArray(service.features) ? service.features.join(', ') : '';
     formIsActive = service.is_active ?? true;
     formIcon = service.icon || 'Package';
+    formServiceKey = service.service_key || '';
     showForm = true;
   }
 
@@ -77,6 +89,7 @@
       features: featuresArray,
       is_active: formIsActive,
       icon: formIcon,
+      service_key: formServiceKey || null,
     };
 
     if (editingService) {
@@ -196,10 +209,17 @@
             </div>
 
             <!-- Status Badge -->
-            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mb-3
-              {service.is_active ? 'bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300' : 'bg-muted text-muted-foreground'}">
-              {service.is_active ? 'Activo' : 'Inactivo'}
-            </span>
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                {service.is_active ? 'bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300' : 'bg-muted text-muted-foreground'}">
+                {service.is_active ? 'Activo' : 'Inactivo'}
+              </span>
+              {#if service.service_key}
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
+                  {SERVICE_KEY_LABELS[service.service_key] ?? service.service_key}
+                </span>
+              {/if}
+            </div>
 
             {#if service.description}
               <p class="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-3">{service.description}</p>
@@ -318,6 +338,22 @@
             class="h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <p class="text-xs text-muted-foreground mt-1">Separa las características con comas.</p>
+        </div>
+
+        <!-- Service key -->
+        <div>
+          <label for="service-key" class="block text-sm font-medium text-foreground mb-1.5">Vincular con servicio técnico</label>
+          <select
+            id="service-key"
+            bind:value={formServiceKey}
+            class="h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">Ninguno (no técnico / sin mapear todavía)</option>
+            {#each Object.entries(SERVICE_KEY_LABELS) as [key, label]}
+              <option value={key}>{label}</option>
+            {/each}
+          </select>
+          <p class="text-xs text-muted-foreground mt-1">Define qué campo de dominio le aparece a una escuela en /admin/escuelas cuando contrata este servicio.</p>
         </div>
 
         <!-- Icon -->

@@ -45,11 +45,31 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
     domainsBySchool.get(d.school_id)![d.service] = d.domain;
   }
 
+  // Qué servicio técnico (fichero/agenda/inventario) tiene REALMENTE
+  // contratado cada escuela -- para no ofrecerle un campo de dominio de un
+  // servicio que ni contrató. "Contratado" = una solicitud resuelta
+  // (landing.requests.status='resolved') de un servicio del catálogo que
+  // ya esté vinculado (service_key) a uno de los 3 servicios reales.
+  const { data: resolvedRequests } = await adminClient
+    .schema('landing')
+    .from('requests')
+    .select('school_id, services(service_key)')
+    .eq('status', 'resolved');
+
+  const contractedServicesBySchool = new Map<string, Set<string>>();
+  for (const r of resolvedRequests ?? []) {
+    const key = (r as unknown as { services?: { service_key: string | null } | null }).services?.service_key;
+    if (!r.school_id || !key) continue;
+    if (!contractedServicesBySchool.has(r.school_id)) contractedServicesBySchool.set(r.school_id, new Set());
+    contractedServicesBySchool.get(r.school_id)!.add(key);
+  }
+
   return {
     schools: (schools ?? []).map((s) => ({
       ...s,
       inventario_student_laptops_enabled: inventarioSettingsBySchool.get(s.id) ?? true,
-      domains: domainsBySchool.get(s.id) ?? {}
+      domains: domainsBySchool.get(s.id) ?? {},
+      contractedServices: [...(contractedServicesBySchool.get(s.id) ?? [])]
     })),
     profiles: profiles ?? []
   };
