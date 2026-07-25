@@ -285,7 +285,9 @@ export const actions: Actions = {
     const cfData = (await cfRes.json()) as { success: boolean; errors?: { code: number; message: string }[] };
 
     if (!cfData.success) {
-      const alreadyAttached = cfData.errors?.some((e) => /already exists|already have/i.test(e.message));
+      // 8000018 = "You have already added this custom domain" (código estable
+      // de Cloudflare) -- confirmado en vivo, más confiable que matchear texto.
+      const alreadyAttached = cfData.errors?.some((e) => e.code === 8000018);
       if (!alreadyAttached) {
         return {
           success: true,
