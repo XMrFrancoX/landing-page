@@ -2,9 +2,16 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import { Building2, Users, Plus, Trash2, Upload, UserPlus, CheckCircle2 } from 'lucide-svelte';
+  import { toast } from 'svelte-sonner';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
   let { data, form } = $props();
+
+  const domainServices: [string, string][] = [
+    ['fichero', 'Fichero Escolar'],
+    ['agenda', 'Agenda Educativa'],
+    ['inventario', 'Inventario PCs']
+  ];
 
   let newSchoolName = $state('');
   // Rol global de toda la plataforma (Agenda Educativa/Landing/Inventario
@@ -70,13 +77,41 @@
             </div>
           </div>
 
-          <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-3">
-            <form method="POST" action="?/updateDomain" class="flex gap-2 items-center flex-1 min-w-[220px]" use:enhance={() => async ({ result, update }) => { if (result.type === 'success') await invalidateAll(); else await update(); }}>
-              <input type="hidden" name="school_id" value={school.id} />
-              <input type="text" name="domain" value={school.custom_domain || ''} placeholder="dominio.edu.ar" class="h-8 flex-1 rounded-md border px-2 text-xs" />
-              <button type="submit" class="h-8 rounded-md border bg-card px-3 text-xs font-medium hover:bg-muted">Vincular dominio</button>
-            </form>
+          <div class="mt-3 pt-3 border-t">
+            <div class="text-xs font-medium text-muted-foreground mb-2">Dominios personalizados por servicio</div>
+            <div class="flex flex-col gap-2 mb-3">
+              {#each domainServices as [service, label]}
+                <form
+                  method="POST"
+                  action="?/updateDomain"
+                  class="flex gap-2 items-center"
+                  use:enhance={() => async ({ result, update }) => {
+                    if (result.type === 'success') {
+                      const warning = (result.data as { warning?: string } | undefined)?.warning;
+                      if (warning) toast.warning(warning);
+                      await invalidateAll();
+                    } else {
+                      await update();
+                    }
+                  }}
+                >
+                  <input type="hidden" name="school_id" value={school.id} />
+                  <input type="hidden" name="service" value={service} />
+                  <span class="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
+                  <input
+                    type="text"
+                    name="domain"
+                    value={school.domains?.[service] || ''}
+                    placeholder="subdominio.suescuela.com.ar"
+                    class="h-8 flex-1 rounded-md border px-2 text-xs"
+                  />
+                  <button type="submit" class="h-8 rounded-md border bg-card px-3 text-xs font-medium hover:bg-muted">Guardar</button>
+                </form>
+              {/each}
+            </div>
+          </div>
 
+          <div class="pt-3 border-t flex flex-wrap items-center gap-3">
             <form method="POST" action="?/updateColor" class="flex gap-2 items-center" use:enhance={() => async ({ result, update }) => { if (result.type === 'success') await invalidateAll(); else await update(); }}>
               <input type="hidden" name="school_id" value={school.id} />
               <label class="text-xs text-muted-foreground" for="color-{school.id}">Color institucional</label>
