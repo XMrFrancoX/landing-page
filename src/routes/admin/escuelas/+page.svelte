@@ -79,8 +79,13 @@
 
           <div class="mt-3 pt-3 border-t">
             <div class="text-xs font-medium text-muted-foreground mb-2">Dominios personalizados por servicio</div>
+            {#if school.contractedServices.length === 0}
+              <p class="text-xs text-muted-foreground italic mb-3">
+                Esta escuela todavía no tiene servicios técnicos contratados (o el catálogo de /admin/servicios no los tiene vinculados con "Vincular con servicio técnico") — no hay ningún dominio para configurar por ahora.
+              </p>
+            {/if}
             <div class="flex flex-col gap-2 mb-3">
-              {#each domainServices as [service, label]}
+              {#each domainServices.filter(([service]) => school.contractedServices.includes(service)) as [service, label]}
                 <form
                   method="POST"
                   action="?/updateDomain"
