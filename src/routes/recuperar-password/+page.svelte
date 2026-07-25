@@ -18,10 +18,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Recuperar Contraseña — NMF Soluciones Educativas</title>
-</svelte:head>
-
 <div class="login-page">
   <div class="login-bg">
     <div class="bg-orb orb-1"></div>
