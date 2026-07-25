@@ -1,6 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/supabase.server';
+import { env } from '$env/dynamic/private';
+
+// Un servicio = un proyecto de Cloudflare Pages. Si se agrega un servicio
+// nuevo a la plataforma, sumarlo acá y al CHECK de school_domains.service
+// en la base (ver school_domains.sql / migraciones).
+const SERVICE_PROJECTS: Record<string, string> = {
+	fichero: 'fichero-escolar',
+	agenda: 'agenda-educativa',
+	inventario: 'inventario-pcs-nmf'
+};
 
 export const load: PageServerLoad = async ({ locals: { profile } }) => {
   if (profile?.role !== 'superadmin') {
@@ -28,10 +38,18 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
     (inventarioSettings ?? []).map((s) => [s.school_id, s.student_laptops_enabled])
   );
 
+  const { data: schoolDomains } = await adminClient.from('school_domains').select('school_id, service, domain');
+  const domainsBySchool = new Map<string, Record<string, string>>();
+  for (const d of schoolDomains ?? []) {
+    if (!domainsBySchool.has(d.school_id)) domainsBySchool.set(d.school_id, {});
+    domainsBySchool.get(d.school_id)![d.service] = d.domain;
+  }
+
   return {
     schools: (schools ?? []).map((s) => ({
       ...s,
-      inventario_student_laptops_enabled: inventarioSettingsBySchool.get(s.id) ?? true
+      inventario_student_laptops_enabled: inventarioSettingsBySchool.get(s.id) ?? true,
+      domains: domainsBySchool.get(s.id) ?? {}
     })),
     profiles: profiles ?? []
   };
@@ -203,29 +221,79 @@ export const actions: Actions = {
     return { success: true };
   },
 
+  // Dominio propio POR SERVICIO (school_domains) — una escuela puede tener
+  // intranet.suescuela.com para Fichero Escolar y calendario.suescuela.com
+  // para Agenda Educativa al mismo tiempo, cada uno vinculado acá y
+  // adjuntado automáticamente al proyecto de Cloudflare Pages que
+  // corresponde (antes había que entrar a mano al dashboard de cada uno).
   updateDomain: async ({ request, locals: { profile } }) => {
     const denied = requireSuperadmin(profile);
     if (denied) return denied;
 
     const formData = await request.formData();
     const schoolId = formData.get('school_id') as string;
+    const service = formData.get('service') as string;
     let domain = formData.get('domain') as string;
     if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
+    if (!service || !(service in SERVICE_PROJECTS)) return fail(400, { error: 'Servicio inválido.' });
 
-    if (domain) {
-      domain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const adminClient = createSupabaseAdminClient();
+
+    if (!domain) {
+      // Solo se quita de nuestro lado -- no se borra automático de Cloudflare
+      // para no cortar por error un dominio que la escuela siga usando.
+      const { error } = await adminClient
+        .from('school_domains')
+        .delete()
+        .eq('school_id', schoolId)
+        .eq('service', service);
+      if (error) return fail(500, { error: 'No se pudo quitar el dominio.' });
+      return { success: true };
     }
 
-    const { error } = await createSupabaseAdminClient()
-      .from('schools')
-      .update({ custom_domain: domain || null })
-      .eq('id', schoolId);
+    domain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+    const { error } = await adminClient
+      .from('school_domains')
+      .upsert({ school_id: schoolId, service, domain }, { onConflict: 'school_id,service' });
     if (error) {
       if ((error as { code?: string }).code === '23505') {
-        return fail(400, { error: 'Este dominio ya está registrado por otra escuela.' });
+        return fail(400, { error: 'Ese dominio ya está vinculado a otra escuela/servicio.' });
       }
-      return fail(500, { error: 'No se pudo actualizar el dominio.' });
+      return fail(500, { error: 'No se pudo guardar el dominio.' });
     }
+
+    const apiToken = env.CLOUDFLARE_API_TOKEN;
+    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+    const projectName = SERVICE_PROJECTS[service];
+
+    if (!apiToken || !accountId) {
+      return {
+        success: true,
+        warning: `Se guardó, pero falta configurar CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID para adjuntarlo automático. Agregalo a mano en Cloudflare Pages → ${projectName} → Custom domains.`
+      };
+    }
+
+    const cfRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${projectName}/domains`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: domain })
+      }
+    );
+    const cfData = (await cfRes.json()) as { success: boolean; errors?: { code: number; message: string }[] };
+
+    if (!cfData.success) {
+      const alreadyAttached = cfData.errors?.some((e) => /already exists|already have/i.test(e.message));
+      if (!alreadyAttached) {
+        return {
+          success: true,
+          warning: `Se guardó, pero Cloudflare rechazó el dominio: ${cfData.errors?.[0]?.message ?? 'error desconocido'}. Revisá que el colegio ya tenga el CNAME apuntando a ${projectName}.pages.dev antes de reintentar.`
+        };
+      }
+    }
+
     return { success: true };
   },
 
