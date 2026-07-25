@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { supabase, landing } from '$lib/supabaseClient';
+  import { enhance } from '$app/forms';
   import { ArrowLeft, CheckCircle2, ChevronRight, Sun, Moon } from 'lucide-svelte';
   import { onMount } from 'svelte';
   import { getInitialTheme, applyTheme, type Theme } from '$lib/theme';
 
-  let { data } = $props();
+  let { data, form } = $props();
 
   let theme = $state<Theme>('light');
   onMount(() => { theme = getInitialTheme(); });
@@ -12,71 +12,9 @@
     theme = theme === 'light' ? 'dark' : 'light';
     applyTheme(theme);
   }
-  
-  let contact_name = $state('');
-  let contact_email = $state('');
-  let contact_phone = $state('');
-  let message = $state('');
-  
+
   let isLoading = $state(false);
   let isSuccess = $state(false);
-  let errorMessage = $state('');
-
-  async function handleSubmit(event: Event) {
-    event.preventDefault();
-    isLoading = true;
-    errorMessage = '';
-
-    // Si hay una sesión activa, vinculamos la solicitud a esa cuenta y a
-    // su escuela — así un admin/director puede ver en /cliente todo lo
-    // que contrató su institución, no solo lo que él mismo pidió.
-    let user_id: string | null = null;
-    let school_id: string | null = null;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      user_id = session.user.id;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('school_id')
-        .eq('id', session.user.id)
-        .single();
-      school_id = profile?.school_id ?? null;
-    }
-
-    const { data: inserted, error } = await landing
-      .from('requests')
-      .insert([
-        {
-          service_id: data.service.id,
-          user_id,
-          school_id,
-          contact_name,
-          contact_email,
-          contact_phone,
-          message
-        }
-      ])
-      .select('id')
-      .single();
-
-    isLoading = false;
-
-    if (error) {
-      console.error(error);
-      errorMessage = 'Hubo un error al enviar tu solicitud. Intenta nuevamente o contáctanos por teléfono.';
-    } else {
-      isSuccess = true;
-      // Avisa a NMF por mail. Fire-and-forget: si falla, no debe romper
-      // la confirmación que ya vio el usuario.
-      if (inserted?.id) {
-        fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'solicitud', requestId: inserted.id })
-        }).catch(() => {});
-      }
-    }
-  }
 </script>
 
 <div class="flex flex-col min-h-screen">
@@ -146,32 +84,47 @@
           </div>
           
           <div class="p-6">
-            {#if errorMessage}
+            {#if form?.error}
               <div class="mb-6 p-3 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 rounded-md text-sm border border-red-100 dark:border-red-900">
-                {errorMessage}
+                {form.error}
               </div>
             {/if}
 
-            <form onsubmit={handleSubmit} class="space-y-5">
+            <form
+              method="POST"
+              class="space-y-5"
+              use:enhance={() => {
+                isLoading = true;
+                return async ({ result, update }) => {
+                  isLoading = false;
+                  if (result.type === 'success') {
+                    isSuccess = true;
+                  } else {
+                    await update();
+                  }
+                };
+              }}
+            >
+              <input type="hidden" name="service_id" value={data.service.id} />
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="space-y-2">
                   <label for="name" class="text-sm font-medium text-foreground">Nombre / Institución *</label>
-                  <input id="name" type="text" required bind:value={contact_name} class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Ej. Colegio San José" />
+                  <input id="name" name="contact_name" type="text" required class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Ej. Colegio San José" />
                 </div>
                 <div class="space-y-2">
                   <label for="email" class="text-sm font-medium text-foreground">Correo Electrónico *</label>
-                  <input id="email" type="email" required bind:value={contact_email} class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="correo@institucion.edu" />
+                  <input id="email" name="contact_email" type="email" required class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="correo@institucion.edu" />
                 </div>
               </div>
 
               <div class="space-y-2">
                 <label for="phone" class="text-sm font-medium text-foreground">Teléfono de Contacto</label>
-                <input id="phone" type="tel" bind:value={contact_phone} class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="+54 9 11 1234-5678" />
+                <input id="phone" name="contact_phone" type="tel" class="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="+54 9 11 1234-5678" />
               </div>
 
               <div class="space-y-2">
                 <label for="message" class="text-sm font-medium text-foreground">Mensaje Adicional</label>
-                <textarea id="message" rows="4" bind:value={message} class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Cuénntanos cuántos alumnos o dispositivos manejan..."></textarea>
+                <textarea id="message" name="message" rows="4" class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Cuénntanos cuántos alumnos o dispositivos manejan..."></textarea>
               </div>
 
               <button type="submit" disabled={isLoading} class="inline-flex w-full h-11 items-center justify-center gap-2 rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none">
