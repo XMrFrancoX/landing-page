@@ -7,12 +7,6 @@
 
   let { data, form } = $props();
 
-  const domainServices: [string, string][] = [
-    ['fichero', 'Fichero Escolar'],
-    ['agenda', 'Agenda Educativa'],
-    ['inventario', 'Inventario PCs']
-  ];
-
   let newSchoolName = $state('');
   // Rol global de toda la plataforma (Agenda Educativa/Landing/Inventario
   // PCs comparten esta misma columna) — 'intern' solo lo usa Inventario.
@@ -78,42 +72,31 @@
           </div>
 
           <div class="mt-3 pt-3 border-t">
-            <div class="text-xs font-medium text-muted-foreground mb-2">Dominios personalizados por servicio</div>
-            {#if school.contractedServices.length === 0}
-              <p class="text-xs text-muted-foreground italic mb-3">
-                Esta escuela todavía no tiene servicios técnicos contratados (o el catálogo de /admin/servicios no los tiene vinculados con "Vincular con servicio técnico") — no hay ningún dominio para configurar por ahora.
-              </p>
-            {/if}
-            <div class="flex flex-col gap-2 mb-3">
-              {#each domainServices.filter(([service]) => school.contractedServices.includes(service)) as [service, label]}
-                <form
-                  method="POST"
-                  action="?/updateDomain"
-                  class="flex gap-2 items-center"
-                  use:enhance={() => async ({ result, update }) => {
-                    if (result.type === 'success') {
-                      const warning = (result.data as { warning?: string } | undefined)?.warning;
-                      if (warning) toast.warning(warning);
-                      await invalidateAll();
-                    } else {
-                      await update();
-                    }
-                  }}
-                >
-                  <input type="hidden" name="school_id" value={school.id} />
-                  <input type="hidden" name="service" value={service} />
-                  <span class="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
-                  <input
-                    type="text"
-                    name="domain"
-                    value={school.domains?.[service] || ''}
-                    placeholder="subdominio.suescuela.com.ar"
-                    class="h-8 flex-1 rounded-md border px-2 text-xs"
-                  />
-                  <button type="submit" class="h-8 rounded-md border bg-card px-3 text-xs font-medium hover:bg-muted">Guardar</button>
-                </form>
-              {/each}
-            </div>
+            <div class="text-xs font-medium text-muted-foreground mb-2">Dominio propio del colegio</div>
+            <form
+              method="POST"
+              action="?/updateDomain"
+              class="flex gap-2 items-center mb-3"
+              use:enhance={() => async ({ result, update }) => {
+                if (result.type === 'success') {
+                  const warning = (result.data as { warning?: string } | undefined)?.warning;
+                  if (warning) toast.warning(warning);
+                  await invalidateAll();
+                } else {
+                  await update();
+                }
+              }}
+            >
+              <input type="hidden" name="school_id" value={school.id} />
+              <input
+                type="text"
+                name="domain"
+                value={school.domain}
+                placeholder="portal.suescuela.com.ar"
+                class="h-8 flex-1 rounded-md border px-2 text-xs"
+              />
+              <button type="submit" class="h-8 rounded-md border bg-card px-3 text-xs font-medium hover:bg-muted">Guardar</button>
+            </form>
           </div>
 
           <div class="pt-3 border-t flex flex-wrap items-center gap-3">

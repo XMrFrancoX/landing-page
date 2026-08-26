@@ -3,14 +3,52 @@ import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/supabase.server';
 import { env } from '$env/dynamic/private';
 
-// Un servicio = un proyecto de Cloudflare Pages. Si se agrega un servicio
-// nuevo a la plataforma, sumarlo acá y al CHECK de school_domains.service
-// en la base (ver school_domains.sql / migraciones).
-const SERVICE_PROJECTS: Record<string, string> = {
-	fichero: 'fichero-escolar',
-	agenda: 'agenda-educativa',
-	inventario: 'inventario-pcs-nmf'
-};
+// Desde que Fichero Escolar/Agenda Educativa/Inventario PCs se fusionaron en
+// un solo portal (nmf-portal), un colegio tiene UN dominio propio para todo,
+// no uno por servicio — antes acá había 3 proyectos de Cloudflare Pages
+// separados (fichero-escolar/agenda-educativa/inventario-pcs-nmf), todos
+// dados de baja el 2026-08-11 cuando se migró a portal.nmfsoluciones.com.ar.
+const PORTAL_CLOUDFLARE_PROJECT = 'nmf-portal';
+
+// Proyecto de Supabase de PRODUCCIÓN de nmf-portal (no el de dev) — el que
+// hay que mantener sincronizado en su Auth > URL Configuration cada vez que
+// un colegio agrega su propio dominio, si no /forgot-password y las
+// invitaciones le van a redirigir a un dominio no permitido y van a fallar
+// (pasó una vez a mano, ver sesión 2026-08-25 de nmf-portal).
+const NMF_PORTAL_PROD_PROJECT_REF = 'mqkflseqxiijzxnialkv';
+
+// Agrega `https://{domain}/**` al uri_allow_list de Auth de nmf-portal-prod
+// vía la Management API de Supabase, sin pisar lo que ya haya cargado a
+// mano. No se llama en el sentido inverso (al borrar un dominio) por la
+// misma cautela que ya aplicaba el adjuntado de Cloudflare: no cortar por
+// error algo que el colegio pueda seguir usando.
+async function agregarDominioAAuthAllowList(domain: string): Promise<string | null> {
+	const accessToken = env.SUPABASE_ACCESS_TOKEN;
+	if (!accessToken) {
+		return 'Falta configurar SUPABASE_ACCESS_TOKEN — el dominio no se agregó automáticamente a la lista de redirects permitidos de Supabase Auth (Auth > URL Configuration en el proyecto de producción de nmf-portal). Agregalo a mano: https://{dominio}/**';
+	}
+
+	const configRes = await fetch(`https://api.supabase.com/v1/projects/${NMF_PORTAL_PROD_PROJECT_REF}/config/auth`, {
+		headers: { Authorization: `Bearer ${accessToken}` }
+	});
+	if (!configRes.ok) {
+		return `No se pudo leer la configuración de Auth de Supabase (HTTP ${configRes.status}) — agregá el dominio a mano en Auth > URL Configuration.`;
+	}
+	const config = (await configRes.json()) as { uri_allow_list?: string };
+	const actuales = (config.uri_allow_list ?? '').split(',').filter(Boolean);
+	const patron = `https://${domain}/**`;
+	if (actuales.includes(patron)) return null;
+
+	const patchRes = await fetch(`https://api.supabase.com/v1/projects/${NMF_PORTAL_PROD_PROJECT_REF}/config/auth`, {
+		method: 'PATCH',
+		headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ uri_allow_list: [...actuales, patron].join(',') })
+	});
+	if (!patchRes.ok) {
+		return `Supabase rechazó agregar el dominio a la lista de redirects permitidos (HTTP ${patchRes.status}) — agregalo a mano.`;
+	}
+	return null;
+}
 
 export const load: PageServerLoad = async ({ locals: { profile } }) => {
   if (profile?.role !== 'superadmin') {
@@ -38,38 +76,14 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
     (inventarioSettings ?? []).map((s) => [s.school_id, s.student_laptops_enabled])
   );
 
-  const { data: schoolDomains } = await adminClient.from('school_domains').select('school_id, service, domain');
-  const domainsBySchool = new Map<string, Record<string, string>>();
-  for (const d of schoolDomains ?? []) {
-    if (!domainsBySchool.has(d.school_id)) domainsBySchool.set(d.school_id, {});
-    domainsBySchool.get(d.school_id)![d.service] = d.domain;
-  }
-
-  // Qué servicio técnico (fichero/agenda/inventario) tiene REALMENTE
-  // contratado cada escuela -- para no ofrecerle un campo de dominio de un
-  // servicio que ni contrató. "Contratado" = una solicitud resuelta
-  // (landing.requests.status='resolved') de un servicio del catálogo que
-  // ya esté vinculado (service_key) a uno de los 3 servicios reales.
-  const { data: resolvedRequests } = await adminClient
-    .schema('landing')
-    .from('requests')
-    .select('school_id, services(service_key)')
-    .eq('status', 'resolved');
-
-  const contractedServicesBySchool = new Map<string, Set<string>>();
-  for (const r of resolvedRequests ?? []) {
-    const key = (r as unknown as { services?: { service_key: string | null } | null }).services?.service_key;
-    if (!r.school_id || !key) continue;
-    if (!contractedServicesBySchool.has(r.school_id)) contractedServicesBySchool.set(r.school_id, new Set());
-    contractedServicesBySchool.get(r.school_id)!.add(key);
-  }
+  const { data: schoolDomains } = await adminClient.from('school_domains').select('school_id, domain');
+  const domainBySchool = new Map((schoolDomains ?? []).map((d) => [d.school_id, d.domain]));
 
   return {
     schools: (schools ?? []).map((s) => ({
       ...s,
       inventario_student_laptops_enabled: inventarioSettingsBySchool.get(s.id) ?? true,
-      domains: domainsBySchool.get(s.id) ?? {},
-      contractedServices: [...(contractedServicesBySchool.get(s.id) ?? [])]
+      domain: domainBySchool.get(s.id) ?? ''
     })),
     profiles: profiles ?? []
   };
@@ -241,32 +255,29 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  // Dominio propio POR SERVICIO (school_domains) — una escuela puede tener
-  // intranet.suescuela.com para Fichero Escolar y calendario.suescuela.com
-  // para Agenda Educativa al mismo tiempo, cada uno vinculado acá y
-  // adjuntado automáticamente al proyecto de Cloudflare Pages que
-  // corresponde (antes había que entrar a mano al dashboard de cada uno).
+  // Dominio propio del colegio (school_domains, uno por escuela) — se
+  // adjunta automático al proyecto único de Cloudflare Pages (nmf-portal) y
+  // se agrega a la lista de redirects permitidos de Supabase Auth en
+  // producción, para que /forgot-password, invitaciones y magic links
+  // funcionen apenas se carga el dominio (antes había que hacer las dos
+  // cosas a mano — se nos había olvidado hacerlo para portal.nmfsoluciones.com.ar
+  // hasta que un reset de contraseña en vivo lo mostró roto).
   updateDomain: async ({ request, locals: { profile } }) => {
     const denied = requireSuperadmin(profile);
     if (denied) return denied;
 
     const formData = await request.formData();
     const schoolId = formData.get('school_id') as string;
-    const service = formData.get('service') as string;
     let domain = formData.get('domain') as string;
     if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
-    if (!service || !(service in SERVICE_PROJECTS)) return fail(400, { error: 'Servicio inválido.' });
 
     const adminClient = createSupabaseAdminClient();
 
     if (!domain) {
       // Solo se quita de nuestro lado -- no se borra automático de Cloudflare
-      // para no cortar por error un dominio que la escuela siga usando.
-      const { error } = await adminClient
-        .from('school_domains')
-        .delete()
-        .eq('school_id', schoolId)
-        .eq('service', service);
+      // ni de Supabase Auth para no cortar por error un dominio que la
+      // escuela siga usando.
+      const { error } = await adminClient.from('school_domains').delete().eq('school_id', schoolId);
       if (error) return fail(500, { error: 'No se pudo quitar el dominio.' });
       return { success: true };
     }
@@ -275,47 +286,50 @@ export const actions: Actions = {
 
     const { error } = await adminClient
       .from('school_domains')
-      .upsert({ school_id: schoolId, service, domain }, { onConflict: 'school_id,service' });
+      .upsert({ school_id: schoolId, domain }, { onConflict: 'school_id' });
     if (error) {
       if ((error as { code?: string }).code === '23505') {
-        return fail(400, { error: 'Ese dominio ya está vinculado a otra escuela/servicio.' });
+        return fail(400, { error: 'Ese dominio ya está vinculado a otra escuela.' });
       }
       return fail(500, { error: 'No se pudo guardar el dominio.' });
     }
 
+    const warnings: string[] = [];
+
     const apiToken = env.CLOUDFLARE_API_TOKEN;
     const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-    const projectName = SERVICE_PROJECTS[service];
 
     if (!apiToken || !accountId) {
-      return {
-        success: true,
-        warning: `Se guardó, pero falta configurar CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID para adjuntarlo automático. Agregalo a mano en Cloudflare Pages → ${projectName} → Custom domains.`
-      };
-    }
+      warnings.push(
+        `Falta configurar CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID para adjuntarlo automático. Agregalo a mano en Cloudflare Pages → ${PORTAL_CLOUDFLARE_PROJECT} → Custom domains.`
+      );
+    } else {
+      const cfRes = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${PORTAL_CLOUDFLARE_PROJECT}/domains`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: domain })
+        }
+      );
+      const cfData = (await cfRes.json()) as { success: boolean; errors?: { code: number; message: string }[] };
 
-    const cfRes = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${projectName}/domains`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: domain })
-      }
-    );
-    const cfData = (await cfRes.json()) as { success: boolean; errors?: { code: number; message: string }[] };
-
-    if (!cfData.success) {
-      // 8000018 = "You have already added this custom domain" (código estable
-      // de Cloudflare) -- confirmado en vivo, más confiable que matchear texto.
-      const alreadyAttached = cfData.errors?.some((e) => e.code === 8000018);
-      if (!alreadyAttached) {
-        return {
-          success: true,
-          warning: `Se guardó, pero Cloudflare rechazó el dominio: ${cfData.errors?.[0]?.message ?? 'error desconocido'}. Revisá que el colegio ya tenga el CNAME apuntando a ${projectName}.pages.dev antes de reintentar.`
-        };
+      if (!cfData.success) {
+        // 8000018 = "You have already added this custom domain" (código estable
+        // de Cloudflare) -- confirmado en vivo, más confiable que matchear texto.
+        const alreadyAttached = cfData.errors?.some((e) => e.code === 8000018);
+        if (!alreadyAttached) {
+          warnings.push(
+            `Cloudflare rechazó el dominio: ${cfData.errors?.[0]?.message ?? 'error desconocido'}. Revisá que el colegio ya tenga el CNAME apuntando a ${PORTAL_CLOUDFLARE_PROJECT}.pages.dev antes de reintentar.`
+          );
+        }
       }
     }
 
+    const authWarning = await agregarDominioAAuthAllowList(domain);
+    if (authWarning) warnings.push(authWarning);
+
+    if (warnings.length > 0) return { success: true, warning: warnings.join(' ') };
     return { success: true };
   },
 
