@@ -69,9 +69,10 @@ export async function notifySuperadmins(subject: string, html: string): Promise<
 }
 
 /**
- * Manda el mail de recuperación de contraseña con el link que generó
- * supabase.auth.admin.generateLink({ type: 'recovery' }).
- * Mismo flujo que Agenda Educativa (src/routes/recuperar-password), acá
+ * Manda el mail de recuperación de contraseña con el link armado en
+ * /recuperar-password (token propio en public.password_reset_tokens, vence
+ * a los 10 minutos -- no es el recovery link nativo de Supabase Auth, ver
+ * el comentario en recuperar-password/+page.server.ts para el porqué).
  * fetch-based en vez del SDK de `resend` para no sumar una dependencia.
  */
 export async function sendPasswordResetEmail(email: string, actionLink: string): Promise<void> {
@@ -82,7 +83,7 @@ export async function sendPasswordResetEmail(email: string, actionLink: string):
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
         <h2 style="color: #0a3055; text-align: center;">Recuperación de Contraseña</h2>
         <p style="color: #4b5563; line-height: 1.5;">Hola,</p>
-        <p style="color: #4b5563; line-height: 1.5;">Solicitaste restablecer tu contraseña de NMF Soluciones Educativas. Hacé clic en el siguiente enlace para crear una nueva. <strong>Este enlace expira en 24 horas</strong>.</p>
+        <p style="color: #4b5563; line-height: 1.5;">Solicitaste restablecer tu contraseña de NMF Soluciones Educativas. Hacé clic en el siguiente enlace para crear una nueva. <strong>Este enlace expira en 10 minutos</strong> y sólo se puede usar una vez.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${actionLink}" style="display: inline-block; padding: 12px 24px; background-color: #0a3055; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Restablecer mi contraseña</a>
         </div>

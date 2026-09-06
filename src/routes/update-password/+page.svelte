@@ -1,15 +1,26 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { enhance } from '$app/forms';
   import { supabase } from '$lib/supabaseClient';
   import { Lock, ShieldCheck, CheckCircle2, Sun, Moon } from 'lucide-svelte';
   import { getInitialTheme, applyTheme, type Theme } from '$lib/theme';
+  import type { PageData, ActionData } from './$types';
+
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  // Modo "token propio" (?token=..., desde /recuperar-password, vence a los
+  // 10 min) vs modo "link nativo de Supabase" (?code=.../#access_token=...,
+  // usado por el superadmin al crear una cuenta con contraseña temporal).
+  // El primero valida server-side en +page.server.ts; el segundo sigue
+  // manejándose 100% acá con el SDK del cliente, sin tocar nada de eso.
+  const modoToken = $derived(data.resetToken !== null || data.resetTokenInvalid);
 
   let password = $state('');
   let confirmPassword = $state('');
   let isLoading = $state(false);
-  let errorMessage = $state('');
-  let isSuccess = $state(false);
-  let linkExpired = $state(false);
+  let errorMessage = $state(form?.error ?? '');
+  let isSuccess = $state(form?.success ?? false);
+  let linkExpired = $state(data.resetTokenInvalid || !!form?.expired);
 
   let theme = $state<Theme>('light');
   function toggleTheme() {
@@ -19,6 +30,10 @@
 
   onMount(async () => {
     theme = getInitialTheme();
+
+    // El modo token propio ya se validó server-side (+page.server.ts);
+    // acá no hay ningún code/hash de Supabase que procesar.
+    if (modoToken) return;
 
     const url = new URL(window.location.href);
     const code = url.searchParams.get('code');
@@ -142,6 +157,86 @@
           <CheckCircle2 size={16} />
           <span>¡Contraseña actualizada! Redirigiendo...</span>
         </div>
+      {:else if modoToken}
+        <form
+          method="POST"
+          action="?/resetWithToken"
+          use:enhance={({ cancel }) => {
+            errorMessage = '';
+            if (password.length < 6) {
+              errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+              cancel();
+              return;
+            }
+            if (password !== confirmPassword) {
+              errorMessage = 'Las contraseñas no coinciden.';
+              cancel();
+              return;
+            }
+            isLoading = true;
+            return async ({ result }) => {
+              isLoading = false;
+              if (result.type === 'success') {
+                isSuccess = true;
+                setTimeout(() => (window.location.href = '/login'), 1500);
+              } else if (result.type === 'failure') {
+                errorMessage = (result.data?.error as string) ?? 'No se pudo actualizar la contraseña.';
+                if (result.data?.expired) linkExpired = true;
+              } else {
+                errorMessage = 'No se pudo actualizar la contraseña.';
+              }
+            };
+          }}
+        >
+          <input type="hidden" name="token" value={data.resetToken} />
+          {#if errorMessage}
+            <div class="alert alert-destructive" style="margin-bottom: 1.25rem;">
+              <span>{errorMessage}</span>
+            </div>
+          {/if}
+
+          <div class="form-group">
+            <label for="password" class="input-label">Nueva contraseña</label>
+            <div class="input-wrapper">
+              <Lock class="input-icon" size={16} />
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minlength="6"
+                bind:value={password}
+                placeholder="Mínimo 6 caracteres"
+                class="input has-icon"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmPassword" class="input-label">Confirmar contraseña</label>
+            <div class="input-wrapper">
+              <ShieldCheck class="input-icon" size={16} />
+              <input
+                id="confirmPassword"
+                type="password"
+                required
+                minlength="6"
+                bind:value={confirmPassword}
+                placeholder="Repetí la contraseña"
+                class="input has-icon"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-login" disabled={isLoading}>
+            {#if isLoading}
+              <span class="spinner"></span>
+              Guardando...
+            {:else}
+              Guardar contraseña
+            {/if}
+          </button>
+        </form>
       {:else}
         <form onsubmit={handleSubmit}>
           {#if errorMessage}
