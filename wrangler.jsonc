@@ -3,5 +3,17 @@
 	"name": "p-gina-de-pagos",
 	"compatibility_date": "2026-06-18",
 	"compatibility_flags": ["nodejs_als"],
-	"pages_build_output_dir": ".svelte-kit/cloudflare"
+	"pages_build_output_dir": ".svelte-kit/cloudflare",
+	// Mismo bucket que usa nmf-portal (binding NMF_STORAGE) — Landing Page
+	// sólo ESCRIBE el logo acá (acción `uploadLogo`, admin/escuelas); nmf-portal
+	// es quien lo sirve de vuelta al mostrarlo (api/storage/[area], área
+	// "escuelas"). Cloudflare Pages reaplica este archivo en CADA deploy, así
+	// que el override de "production" tiene que vivir acá, no sólo en el
+	// dashboard (mismo bug ya encontrado en nmf-portal).
+	"r2_buckets": [{ "binding": "NMF_STORAGE", "bucket_name": "nmf-portal-dev" }],
+	"env": {
+		"production": {
+			"r2_buckets": [{ "binding": "NMF_STORAGE", "bucket_name": "nmf-portal-prod" }]
+		}
+	}
 }

@@ -15,6 +15,14 @@
     director: 'Director', admin: 'Admin. Escuela', superadmin: 'Super Admin', client: 'Cliente'
   };
 
+  // logo_url guarda una URL completa para logos viejos (Supabase Storage
+  // directo, o el sitio propio de un colegio) y, desde que se migró a R2,
+  // sólo la key — que hay que pasar por /api/logo para poder mostrarla acá.
+  function logoSrc(logoUrl: string) {
+    if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) return logoUrl;
+    return `/api/logo?key=${encodeURIComponent(logoUrl)}`;
+  }
+
   let creatingUser = $state(false);
   let newUserEmail = $state('');
   let newUserFullName = $state('');
@@ -52,7 +60,7 @@
         <div class="rounded-xl border p-4 {school.status === 'suspended' ? 'bg-muted opacity-70' : ''}">
           <div class="flex items-center justify-between flex-wrap gap-3">
             <div class="flex items-center gap-3">
-              {#if school.logo_url}<img src={school.logo_url} alt={school.name} class="h-8 w-8 rounded object-cover border" />{/if}
+              {#if school.logo_url}<img src={logoSrc(school.logo_url)} alt={school.name} class="h-8 w-8 rounded object-cover border" />{/if}
               <div>
                 <span class="font-semibold text-foreground">{school.name}</span>
                 {#if school.status === 'suspended'}<span class="ml-2 text-xs bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 rounded-full px-2 py-0.5">Suspendida</span>{/if}

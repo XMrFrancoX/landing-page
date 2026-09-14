@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createSupabaseAdminClient } from '$lib/supabase.server';
+import { putObject } from '$lib/server/r2';
 import { env } from '$env/dynamic/private';
 
 // Desde que Fichero Escolar/Agenda Educativa/Inventario PCs se fusionaron en
@@ -175,7 +176,7 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  uploadLogo: async ({ request, locals: { profile } }) => {
+  uploadLogo: async ({ request, platform, locals: { profile } }) => {
     const denied = requireSuperadmin(profile);
     if (denied) return denied;
 
@@ -189,19 +190,18 @@ export const actions: Actions = {
       return fail(400, { error: 'Formato de imagen no soportado.' });
     }
 
-    const fileName = `${schoolId}-${Date.now()}.${ext}`;
-    const adminClient = createSupabaseAdminClient();
+    // R2 en vez de Supabase Storage (mismo bucket que usa nmf-portal) — se
+    // guarda sólo la KEY en `logo_url`, no una URL pública: nmf-portal la
+    // sirve de vuelta por su propio /api/storage (área "escuelas"), necesario
+    // para que su CSP (img-src 'self') no la bloquee.
+    const bucket = platform?.env.NMF_STORAGE;
+    if (!bucket) return fail(500, { error: 'Storage no disponible.' });
+    const key = `escuelas/${schoolId}/${Date.now()}-logo.${ext}`;
+    await putObject(bucket, key, file);
 
-    const { error: uploadError } = await adminClient.storage
-      .from('school_logos')
-      .upload(fileName, file, { contentType: file.type || 'image/png', cacheControl: '3600', upsert: true });
-    if (uploadError) return fail(500, { error: `No se pudo subir la imagen: ${uploadError.message}` });
-
-    const { data: publicUrlData } = adminClient.storage.from('school_logos').getPublicUrl(fileName);
-
-    const { error: updateError } = await adminClient
+    const { error: updateError } = await createSupabaseAdminClient()
       .from('schools')
-      .update({ logo_url: publicUrlData.publicUrl })
+      .update({ logo_url: key })
       .eq('id', schoolId);
     if (updateError) return fail(500, { error: 'No se pudo vincular el logo a la escuela.' });
     return { success: true };
