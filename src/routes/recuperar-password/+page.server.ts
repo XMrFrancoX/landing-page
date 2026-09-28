@@ -32,6 +32,7 @@ export const actions: Actions = {
 			const adminClient = createSupabaseAdminClient();
 
 			const { data: profile } = await adminClient
+				.schema('core')
 				.from('profiles')
 				.select('id')
 				.eq('email', email)
@@ -41,6 +42,7 @@ export const actions: Actions = {
 				const token = generarToken();
 				const expiresAt = new Date(Date.now() + EXPIRACION_MS).toISOString();
 				const { error: insertError } = await adminClient
+					.schema('core')
 					.from('password_reset_tokens')
 					.insert({ user_id: profile.id, token, expires_at: expiresAt });
 

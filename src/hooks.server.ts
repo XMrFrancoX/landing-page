@@ -39,6 +39,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   if (user) {
     const { data: profile } = await event.locals.supabase
+      .schema('core')
       .from('profiles')
       .select('id, full_name, role, school_id, must_change_password')
       .eq('id', user.id)

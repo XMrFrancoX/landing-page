@@ -44,7 +44,7 @@ export const actions: Actions = {
 
     let school_id: string | null = null;
     if (user) {
-      const { data: profile } = await adminClient.from('profiles').select('school_id').eq('id', user.id).single();
+      const { data: profile } = await adminClient.schema('core').from('profiles').select('school_id').eq('id', user.id).single();
       school_id = profile?.school_id ?? null;
     }
 

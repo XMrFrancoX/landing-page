@@ -49,6 +49,7 @@
         errorMessage = 'Credenciales incorrectas. Verifica tu correo y contraseña.';
       } else {
         const { data: profile } = await supabase
+          .schema('core')
           .from('profiles')
           .select('role, must_change_password')
           .eq('id', data.user.id)
