@@ -45,6 +45,7 @@ export async function notifySuperadmins(subject: string, html: string): Promise<
   const adminClient = createSupabaseAdminClient();
 
   const { data: superadmins, error } = await adminClient
+    .schema('core')
     .from('profiles')
     .select('id, full_name')
     .eq('role', 'superadmin');

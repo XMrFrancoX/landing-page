@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   let schoolName: string | null = null;
   if (req.school_id) {
-    const { data: school } = await adminClient.from('schools').select('name').eq('id', req.school_id).single();
+    const { data: school } = await adminClient.schema('core').from('schools').select('name').eq('id', req.school_id).single();
     schoolName = school?.name ?? null;
   }
 

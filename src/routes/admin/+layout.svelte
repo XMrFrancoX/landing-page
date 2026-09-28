@@ -36,6 +36,7 @@
       goto('/login');
     } else {
       const { data: profile } = await supabase
+        .schema('core')
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)

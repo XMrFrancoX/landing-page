@@ -58,9 +58,10 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
 
   const adminClient = createSupabaseAdminClient();
 
-  const { data: schools } = await adminClient.from('schools').select('*').order('name');
+  const { data: schools } = await adminClient.schema('core').from('schools').select('*').order('name');
 
   const { data: profiles } = await adminClient
+    .schema('core')
     .from('profiles')
     .select('id, full_name, role, school_id, schools(name)')
     .order('created_at', { ascending: false });
@@ -77,7 +78,7 @@ export const load: PageServerLoad = async ({ locals: { profile } }) => {
     (inventarioSettings ?? []).map((s) => [s.school_id, s.student_laptops_enabled])
   );
 
-  const { data: schoolDomains } = await adminClient.from('school_domains').select('school_id, domain');
+  const { data: schoolDomains } = await adminClient.schema('core').from('school_domains').select('school_id, domain');
   const domainBySchool = new Map((schoolDomains ?? []).map((d) => [d.school_id, d.domain]));
 
   return {
@@ -104,7 +105,7 @@ export const actions: Actions = {
     const name = (formData.get('name') as string)?.trim();
     if (!name) return fail(400, { error: 'El nombre de la escuela es obligatorio.' });
 
-    const { error } = await createSupabaseAdminClient().from('schools').insert({ name });
+    const { error } = await createSupabaseAdminClient().schema('core').from('schools').insert({ name });
     if (error) return fail(500, { error: 'No se pudo crear la escuela.' });
     return { success: true };
   },
@@ -141,6 +142,7 @@ export const actions: Actions = {
     // insertó una fila en profiles — acá solo la completamos con rol/escuela
     // y marcamos que tiene que elegir su propia contraseña al entrar.
     const { error: updateError } = await adminClient
+      .schema('core')
       .from('profiles')
       .update({
         full_name: fullName || null,
@@ -169,6 +171,7 @@ export const actions: Actions = {
     if (schoolId === '') schoolId = null;
 
     const { error } = await createSupabaseAdminClient()
+      .schema('core')
       .from('profiles')
       .update({ role, school_id: schoolId })
       .eq('id', targetUserId);
@@ -200,6 +203,7 @@ export const actions: Actions = {
     await putObject(bucket, key, file);
 
     const { error: updateError } = await createSupabaseAdminClient()
+      .schema('core')
       .from('schools')
       .update({ logo_url: key })
       .eq('id', schoolId);
@@ -218,6 +222,7 @@ export const actions: Actions = {
 
     const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
     const { error } = await createSupabaseAdminClient()
+      .schema('core')
       .from('schools')
       .update({ status: newStatus })
       .eq('id', schoolId);
@@ -233,7 +238,7 @@ export const actions: Actions = {
     const schoolId = formData.get('school_id') as string;
     if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
 
-    const { error } = await createSupabaseAdminClient().from('schools').delete().eq('id', schoolId);
+    const { error } = await createSupabaseAdminClient().schema('core').from('schools').delete().eq('id', schoolId);
     if (error) return fail(500, { error: 'No se pudo eliminar la escuela. Verifique que no haya datos huérfanos.' });
     return { success: true };
   },
@@ -248,6 +253,7 @@ export const actions: Actions = {
     if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
 
     const { error } = await createSupabaseAdminClient()
+      .schema('core')
       .from('schools')
       .update({ primary_color: color || null })
       .eq('id', schoolId);
@@ -277,7 +283,7 @@ export const actions: Actions = {
       // Solo se quita de nuestro lado -- no se borra automático de Cloudflare
       // ni de Supabase Auth para no cortar por error un dominio que la
       // escuela siga usando.
-      const { error } = await adminClient.from('school_domains').delete().eq('school_id', schoolId);
+      const { error } = await adminClient.schema('core').from('school_domains').delete().eq('school_id', schoolId);
       if (error) return fail(500, { error: 'No se pudo quitar el dominio.' });
       return { success: true };
     }
@@ -285,6 +291,7 @@ export const actions: Actions = {
     domain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
 
     const { error } = await adminClient
+      .schema('core')
       .from('school_domains')
       .upsert({ school_id: schoolId, domain }, { onConflict: 'school_id' });
     if (error) {
@@ -343,6 +350,7 @@ export const actions: Actions = {
     if (!schoolId) return fail(400, { error: 'ID de escuela requerido.' });
 
     const { error } = await createSupabaseAdminClient()
+      .schema('core')
       .from('schools')
       .update({ whatsapp_enabled: !current })
       .eq('id', schoolId);

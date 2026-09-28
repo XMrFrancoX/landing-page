@@ -16,6 +16,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const adminClient = createSupabaseAdminClient();
 	const { data: row } = await adminClient
+		.schema('core')
 		.from('password_reset_tokens')
 		.select('expires_at, used_at')
 		.eq('token', token)
@@ -37,6 +38,7 @@ export const actions: Actions = {
 
 		const adminClient = createSupabaseAdminClient();
 		const { data: row } = await adminClient
+			.schema('core')
 			.from('password_reset_tokens')
 			.select('id, user_id, expires_at, used_at')
 			.eq('token', token)
@@ -54,8 +56,8 @@ export const actions: Actions = {
 
 		// El token es de un solo uso -- se marca usado apenas se consume,
 		// nunca se reintenta con el mismo aunque falle un paso después.
-		await adminClient.from('password_reset_tokens').update({ used_at: new Date().toISOString() }).eq('id', row.id);
-		await adminClient.from('profiles').update({ must_change_password: false }).eq('id', row.user_id);
+		await adminClient.schema('core').from('password_reset_tokens').update({ used_at: new Date().toISOString() }).eq('id', row.id);
+		await adminClient.schema('core').from('profiles').update({ must_change_password: false }).eq('id', row.user_id);
 
 		return { success: true };
 	}

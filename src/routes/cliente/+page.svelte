@@ -32,6 +32,7 @@
     if (session) {
       user = session.user;
       const { data: profile } = await supabase
+        .schema('core')
         .from('profiles')
         .select('school_id, role, schools(primary_color)')
         .eq('id', session.user.id)
