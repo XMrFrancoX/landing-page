@@ -37,26 +37,33 @@ export const actions: Actions = {
 		}
 
 		const adminClient = createSupabaseAdminClient();
+		if (!token) return fail(400, { error: 'El enlace es inválido o expiró.', expired: true });
+
+		// El token es de un solo uso: se consume ANTES de cambiar la contraseña y en un solo UPDATE
+		// condicional, así dos envíos simultáneos con el mismo link no pueden usarlo los dos.
 		const { data: row } = await adminClient
 			.schema('core')
 			.from('password_reset_tokens')
-			.select('id, user_id, expires_at, used_at')
+			.update({ used_at: new Date().toISOString() })
 			.eq('token', token)
+			.is('used_at', null)
+			.gt('expires_at', new Date().toISOString())
+			.select('id, user_id')
 			.maybeSingle();
 
-		if (!row || row.used_at || new Date(row.expires_at) < new Date()) {
+		if (!row) {
 			return fail(400, { error: 'El enlace es inválido o expiró.', expired: true });
 		}
 
 		const { error: updateError } = await adminClient.auth.admin.updateUserById(row.user_id, { password });
 		if (updateError) {
 			console.error('update-password resetWithToken error:', updateError.message);
-			return fail(500, { error: 'No se pudo actualizar la contraseña.', expired: false });
+			return fail(500, { error: 'No se pudo actualizar la contraseña. Pedí un enlace nuevo.', expired: true });
 		}
 
-		// El token es de un solo uso -- se marca usado apenas se consume,
-		// nunca se reintenta con el mismo aunque falle un paso después.
-		await adminClient.schema('core').from('password_reset_tokens').update({ used_at: new Date().toISOString() }).eq('id', row.id);
+		// Si alguien más tenía la sesión abierta (por eso se recupera la contraseña), queda afuera.
+		const { error: sesionesError } = await adminClient.schema('core').rpc('cerrar_sesiones', { p_user_id: row.user_id });
+		if (sesionesError) console.error('update-password: no se pudieron cerrar las sesiones', sesionesError.message);
 		await adminClient.schema('core').from('profiles').update({ must_change_password: false }).eq('id', row.user_id);
 
 		return { success: true };

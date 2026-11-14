@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from '$lib/supabase.server';
+import { avisarSolicitud } from '$lib/server/avisos-solicitudes';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -68,13 +69,9 @@ export const actions: Actions = {
       return fail(500, { error: 'Hubo un error al enviar tu solicitud. Intenta nuevamente o contáctanos por teléfono.' });
     }
 
-    // Best-effort (mismo endpoint que ya usa el resto de la app): si el
-    // mail falla, no debe romper la confirmación que ya va a ver el usuario.
-    fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'solicitud', requestId: inserted.id })
-    }).catch(() => {});
+    // Best-effort: si el mail falla, no debe romper la confirmación que ya va a ver el usuario.
+    // Se avisa desde acá (servidor) y no por /api/notify, que ya no acepta avisos de solicitudes nuevas.
+    await avisarSolicitud('solicitud', inserted.id).catch((err) => console.error('checkout: no se pudo avisar', err));
 
     return { success: true };
   }
